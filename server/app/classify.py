@@ -1,0 +1,46 @@
+"""공고 제목/유형 텍스트 → 태그·시도 분류."""
+import re
+
+# 푸시 대상에서 제외하는 '결과성' 공고
+RESULT_WORDS = ("당첨자", "결과", "계약안내", "입주안내", "사전방문", "예비입주자")
+
+SIDO_PREFIX = {
+    "서울": "서울", "경기": "경기", "인천": "인천", "부산": "부산", "대구": "대구",
+    "광주": "광주", "대전": "대전", "울산": "울산", "세종": "세종", "강원": "강원",
+    "충북": "충북", "충청북": "충북", "충남": "충남", "충청남": "충남",
+    "전북": "전북", "전라북": "전북", "전남": "전남", "전라남": "전남",
+    "경북": "경북", "경상북": "경북", "경남": "경남", "경상남": "경남", "제주": "제주",
+}
+
+
+def tags_for(title: str, type_text: str = "") -> list[str]:
+    text = f"{title} {type_text}"
+    tags: list[str] = []
+    if "장기전세" in text:
+        tags.append("장기전세")
+    if "무순위" in text or "잔여세대" in text:
+        tags.append("무순위")
+    if "분양" in text:
+        tags.append("분양")
+    if re.search(r"임대|행복주택|전세", text) and "장기전세" not in tags:
+        tags.append("임대")
+    if any(w in text for w in RESULT_WORDS):
+        tags.append("결과")
+    if "정정" in text:
+        tags.append("정정")
+    return tags or ["기타"]
+
+
+def sido_for(region_text: str) -> str:
+    region_text = (region_text or "").strip()
+    for prefix, name in SIDO_PREFIX.items():
+        if region_text.startswith(prefix):
+            return name
+    return region_text[:2]
+
+
+def pushable(tags: list[str]) -> bool:
+    """신규 공고 푸시 대상 여부: 결과성 공고는 제외, 핵심 카테고리만."""
+    if "결과" in tags:
+        return False
+    return bool(set(tags) & {"분양", "무순위", "장기전세", "임대"})

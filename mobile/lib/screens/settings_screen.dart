@@ -1,0 +1,152 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/models.dart';
+import '../core/providers.dart';
+import '../core/user_store.dart';
+import 'subscription_editor.dart';
+
+class SettingsScreen extends ConsumerStatefulWidget {
+  const SettingsScreen({super.key});
+  @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  Subscription? edited;
+  bool busy = false;
+  int editorKey = 0; // 파일에서 가져오면 편집 폼을 새로 그리기 위한 값
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _save() async {
+    final s = edited;
+    if (s == null) return;
+    setState(() => busy = true);
+    try {
+      await ref.read(userDataProvider.notifier).saveSubscription(s);
+      if (mounted) setState(() => edited = null);
+      _toast('저장했어요');
+    } catch (e) {
+      _toast('저장 실패: $e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _export() async {
+    setState(() => busy = true);
+    try {
+      final bytes = Uint8List.fromList(ref.read(userDataProvider.notifier).exportBytes());
+      final ok = await ref.read(fileIoProvider).save(UserStore.fileName, bytes);
+      _toast(ok ? '파일로 저장했어요' : '취소했어요');
+    } catch (e) {
+      _toast('내보내기 실패: $e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _import() async {
+    setState(() => busy = true);
+    try {
+      final bytes = await ref.read(fileIoProvider).pick();
+      if (bytes == null) return;
+      final UserData data;
+      try {
+        data = UserStore.decodeBytes(bytes);
+      } on UserFileException catch (e) {
+        _toast(e.message);
+        return;
+      }
+      if (!mounted) return;
+      final yes = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('파일에서 가져올까요?'),
+          content: Text('지금 설정과 저장한 공고 ${ref.read(favoritesProvider).length}개가 '
+              '파일 내용(저장한 공고 ${data.favorites.length}개)으로 바뀌어요.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('가져오기')),
+          ],
+        ),
+      );
+      if (yes != true) return;
+      await ref.read(userDataProvider.notifier).replaceAll(data.copyWith(onboarded: true));
+      if (mounted) {
+        setState(() {
+          edited = null;
+          editorKey++;
+        });
+      }
+      _toast('가져왔어요');
+    } catch (e) {
+      _toast('가져오기 실패: $e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(subscriptionProvider);
+    final t = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('알림 설정'),
+        actions: [
+          if (edited != null) TextButton(onPressed: busy ? null : _save, child: const Text('저장')),
+        ],
+      ),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        SubscriptionEditor(
+          key: ValueKey(editorKey),
+          initial: s,
+          onChanged: (n) => setState(() => edited = n),
+        ),
+        const SizedBox(height: 28),
+        const Divider(),
+        const SizedBox(height: 8),
+        Text('내 정보 파일', style: t.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          '관심 조건과 저장한 공고는 서버로 보내지 않고 이 기기의 파일(${UserStore.fileName}) 하나에만 저장돼요. '
+          '폰을 바꾸거나 앱을 다시 설치하기 전에 파일로 내보내 두면 그대로 옮길 수 있어요.',
+          style: t.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: busy ? null : _export,
+              icon: const Icon(Icons.file_upload_outlined),
+              label: const Text('파일로 내보내기'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: busy ? null : _import,
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('파일에서 가져오기'),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 28),
+        Text(
+          '공고 정보는 LH·SH·한국부동산원(청약홈)에서 수집한 참고용 자료이며, '
+          '정확한 내용은 각 기관의 원문 공고를 확인해야 합니다.',
+          style: t.bodySmall,
+        ),
+      ]),
+    );
+  }
+}

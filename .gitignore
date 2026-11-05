@@ -1,0 +1,19 @@
+# 수집 결과·로컬 DB (결과는 CI 가 data 브랜치에 올린다)
+server/public/
+server/*.db
+**/__pycache__/
+**/.pytest_cache/
+
+# 앱 빌드 산출물·로컬 설정
+mobile/build/
+mobile/.dart_tool/
+mobile/android/local.properties
+mobile/android/.gradle/
+mobile/ios/Flutter/ephemeral/
+*.iml
+.idea/
+
+# 비밀값·로컬 설정 (프로토타입의 텔레그램 토큰 등)
+.env
+prototype/config.json
+prototype/seen.json
