@@ -26,6 +26,26 @@ String fmtArea(double? a) =>
 String fmtYm(String? ym) =>
     (ym == null || ym.length != 6) ? '-' : '${ym.substring(0, 4)}.${ym.substring(4)}';
 
+/// 전화번호 표기: '16887002' → '1688-7002', '0212345678' → '02-1234-5678'. 알 수 없는 형태는 그대로.
+String fmtTel(String raw) {
+  final s = raw.trim();
+  if (!RegExp(r'^\d+$').hasMatch(s)) return s;
+  if (s.length == 8) return '${s.substring(0, 4)}-${s.substring(4)}';
+  if (s.startsWith('02') && (s.length == 9 || s.length == 10)) {
+    final tail = s.substring(2);
+    final cut = tail.length - 4;
+    return '02-${tail.substring(0, cut)}-${tail.substring(cut)}';
+  }
+  if (s.length == 10 || s.length == 11) {
+    final cut = s.length - 4;
+    return '${s.substring(0, 3)}-${s.substring(3, cut)}-${s.substring(cut)}';
+  }
+  return s;
+}
+
+/// 출처 표시 이름: APPLYHOME → 청약홈.
+String sourceLabel(String s) => s == 'APPLYHOME' ? '청약홈' : s;
+
 /// 주택형 목록의 요약값. 비교 화면과 상세 화면에서 같이 쓴다.
 class TypeSummary {
   TypeSummary(List<HousingType> types) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/format.dart';
+import '../core/grouping.dart';
 import '../core/models.dart';
 import '../core/providers.dart';
 
@@ -62,31 +64,117 @@ class ErrorRetry extends StatelessWidget {
       );
 }
 
+/// '11.9' 형태의 짧은 날짜.
+String fmtMd(DateTime d) => '${d.month}.${d.day}';
+
+/// 접수 기간 한 줄: '접수 11.5 ~ 11.9', '접수 11.9', '마감 11.9', 없으면 null.
+String? periodText(Notice n) {
+  final s = n.infoDate('apply_start');
+  final e = n.applyEnd;
+  if (s != null && e != null) {
+    final same = s.year == e.year && s.month == e.month && s.day == e.day;
+    return same ? '접수 ${fmtMd(e)}' : '접수 ${fmtMd(s)} ~ ${fmtMd(e)}';
+  }
+  if (s != null) return '접수 ${fmtMd(s)}~';
+  if (e != null) return '마감 ${fmtMd(e)}';
+  return null;
+}
+
+Color phaseColor(Phase p) => switch (p) {
+      Phase.closingSoon => const Color(0xFFE53935),
+      Phase.open => const Color(0xFF2E7D32),
+      Phase.upcoming => const Color(0xFF1E88E5),
+      Phase.undated || Phase.closed => const Color(0xFF78909C),
+    };
+
+/// 목록 한 건: 제목 + 우측 상태 배지, 지역·출처, 핵심 수치(접수 기간·세대수·분양가), 태그.
 class NoticeTile extends StatelessWidget {
-  const NoticeTile({super.key, required this.notice, required this.onTap});
+  const NoticeTile({super.key, required this.notice, required this.onTap, this.now});
   final Notice notice;
   final VoidCallback onTap;
+  final DateTime? now; // 테스트용. 기본은 현재 시각
 
   @override
   Widget build(BuildContext context) {
-    final dday = ddayLabel(notice);
-    return ListTile(
+    final at = now ?? DateTime.now();
+    final phase = phaseOf(notice, at);
+    final badge = badgeLabel(notice, at);
+    final color = phaseColor(phase);
+    final theme = Theme.of(context);
+    final grey = theme.textTheme.bodySmall?.copyWith(color: theme.hintColor);
+
+    final households = notice.infoInt('total_households');
+    final types = notice.types;
+    final price = (types == null || types.isEmpty) ? null : TypeSummary(types).priceRange;
+    final facts = <String>[
+      ?periodText(notice),
+      if (households != null) '$households세대',
+      if (price != null && price != '-') price,
+    ];
+
+    return InkWell(
       onTap: onTap,
-      title: Text(notice.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          for (final t in notice.tags.where((t) => t != '정정' && t != '기타')) TagChip(t),
-          Text('${notice.source} · ${notice.sido} · ${fmtDate(notice.announceDate)}',
-              style: Theme.of(context).textTheme.bodySmall),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Text(notice.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            if (badge != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(badge,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+              ),
+            ],
+          ]),
+          const SizedBox(height: 4),
+          Text('${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)}',
+              style: grey),
+          if (facts.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(spacing: 14, runSpacing: 2, children: [
+              for (final f in facts) Text(f, style: theme.textTheme.bodyMedium),
+            ]),
+          ],
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            for (final t in notice.tags.where((t) => t != '정정' && t != '기타')) TagChip(t),
+            if (notice.tags.contains('정정')) TagChip('정정'),
+          ]),
         ]),
       ),
-      trailing: dday == null
-          ? null
-          : Text(dday,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: (notice.daysLeft() ?? 9) <= 1 ? Colors.red : null)),
+    );
+  }
+}
+
+/// 목록의 단계 제목줄: '마감 임박 · 3'.
+class PhaseHeader extends StatelessWidget {
+  const PhaseHeader({super.key, required this.phase, required this.count});
+  final Phase phase;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = phaseColor(phase);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(children: [
+        Container(width: 4, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(phase.label, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(width: 6),
+        Text('$count', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+      ]),
     );
   }
 }

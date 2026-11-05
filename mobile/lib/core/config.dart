@@ -1,9 +1,9 @@
 class AppConfig {
-  /// notices.json 이 있는 주소(끝의 / 없이). 빌드 시 `--dart-define=DATA_BASE=https://...` 로 바꾼다.
-  /// 개발 중에는 PC에서 `python -m http.server 8000 --directory public` 로 띄우고,
-  /// Android 에뮬레이터는 10.0.2.2 로 접근한다.
-  static const dataBase =
-      String.fromEnvironment('DATA_BASE', defaultValue: 'http://10.0.2.2:8000');
+  /// notices.json 이 있는 주소(끝의 / 없이). 기본값은 GitHub Pages 에 배포된 실제 데이터.
+  /// 로컬 수집 결과로 개발할 때는 `--dart-define=DATA_BASE=http://10.0.2.2:8000` 로 바꾼다
+  /// (PC에서 `python -m http.server 8000 --directory public`, 에뮬레이터는 10.0.2.2).
+  static const dataBase = String.fromEnvironment('DATA_BASE',
+      defaultValue: 'https://park-do-hwi.github.io/housing-alert');
 }
 
 const sidoList = [

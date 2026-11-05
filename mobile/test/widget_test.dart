@@ -398,3 +398,5 @@ void main() {
     expect(store.data.favorites, ['LH:7', 'SH:8']);        // 거절되면 변하지 않음
   });
 }
+
+

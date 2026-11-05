@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config.dart';
+import '../core/grouping.dart';
+import '../core/models.dart';
 import '../core/providers.dart';
 import '../widgets/common.dart';
 
@@ -28,6 +30,24 @@ class FeedScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 8),
+                child: PopupMenuButton<String?>(
+                  tooltip: '지역',
+                  onSelected: (v) =>
+                      setFilter(v == null ? filter.copyWith(clearSido: true) : filter.copyWith(sido: v)),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: null, child: Text('전국')),
+                    for (final s in sidoList) PopupMenuItem(value: s, child: Text(s)),
+                  ],
+                  child: Chip(
+                    avatar: const Icon(Icons.place, size: 16),
+                    label: Text(filter.sido ?? '전국'),
+                    backgroundColor:
+                        filter.sido == null ? null : Theme.of(context).colorScheme.secondaryContainer,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
                   avatar: const Icon(Icons.favorite_border, size: 16),
                   label: const Text('내 조건'),
@@ -45,19 +65,6 @@ class FeedScreen extends ConsumerWidget {
                         on ? filter.copyWith(category: c) : filter.copyWith(clearCategory: true)),
                   ),
                 ),
-              PopupMenuButton<String?>(
-                tooltip: '지역',
-                onSelected: (v) =>
-                    setFilter(v == null ? filter.copyWith(clearSido: true) : filter.copyWith(sido: v)),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: null, child: Text('전국')),
-                  for (final s in sidoList) PopupMenuItem(value: s, child: Text(s)),
-                ],
-                child: Chip(
-                  avatar: const Icon(Icons.place, size: 16),
-                  label: Text(filter.sido ?? '전국'),
-                ),
-              ),
             ],
           ),
         ),
@@ -73,18 +80,43 @@ class FeedScreen extends ConsumerWidget {
                       SizedBox(height: 120),
                       Center(child: Text('조건에 맞는 공고가 없어요')),
                     ])
-                  : ListView.separated(
-                      itemCount: list.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (_, i) => NoticeTile(
-                        notice: list[i],
-                        onTap: () => context.push('/notice', extra: list[i]),
-                      ),
-                    ),
+                  : _GroupedList(list: list),
             ),
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// 단계(마감 임박·접수 중·접수 예정…)별 제목줄과 카드를 한 줄로 이어 보여준다.
+class _GroupedList extends StatelessWidget {
+  const _GroupedList({required this.list});
+  final List<Notice> list;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final rows = <Object>[];
+    for (final (phase, items) in groupNotices(list, now)) {
+      rows.add((phase, items.length));
+      rows.addAll(items);
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 88),
+      itemCount: rows.length,
+      itemBuilder: (_, i) {
+        final r = rows[i];
+        if (r is Notice) {
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            NoticeTile(notice: r, now: now, onTap: () => context.push('/notice', extra: r)),
+            const Divider(height: 1),
+          ]);
+        }
+        final (phase, count) = r as (Phase, int);
+        return PhaseHeader(phase: phase, count: count);
+      },
     );
   }
 }

@@ -27,7 +27,7 @@ class DetailScreen extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text('${notice.source} 공고'), actions: [
+      appBar: AppBar(title: Text('${sourceLabel(notice.source)} 공고'), actions: [
         IconButton(
           tooltip: saved ? '저장 해제' : '관심 공고로 저장',
           icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
@@ -91,7 +91,7 @@ class DetailScreen extends ConsumerWidget {
       if (d.str('address') != null) _row('위치', d.str('address')!),
       if (d.str('sponsor') != null) _row('사업주체', d.str('sponsor')!),
       if (d.str('builder') != null) _row('시공사', d.str('builder')!),
-      if (d.str('tel') != null) _row('문의', d.str('tel')!),
+      if (d.str('tel') != null) _row('문의', fmtTel(d.str('tel')!)),
     ];
     final types = d.types;
     return [

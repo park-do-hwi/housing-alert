@@ -39,6 +39,23 @@ def sido_for(region_text: str) -> str:
     return region_text[:2]
 
 
+# 신청자와 무관한 글: 공급자 대상 매입공고, 휴무·교육 안내, 기존 입주자 안내 등
+NOISE_RE = re.compile(
+    r"매입\s*공고|휴무|교육|재계약|입주\s*안내|입주자\s*안내|어린이집|상가|용역|입찰|"
+    r"설문|채용|지연\s*안내|점검|이전\s*안내|개정|사전점검"
+)
+
+
+def is_relevant(title: str, tags: list[str]) -> bool:
+    """앱에 보여줄 공고인가: 분류된 태그가 있고 잡글이 아니어야 한다.
+    '결과' 태그는 앱이 숨기므로 여기선 걸러내지 않는다(결과 조회 기능용)."""
+    if tags == ["기타"]:
+        return False
+    if "결과" in tags:
+        return True
+    return not NOISE_RE.search(title)
+
+
 def pushable(tags: list[str]) -> bool:
     """신규 공고 푸시 대상 여부: 결과성 공고는 제외, 핵심 카테고리만."""
     if "결과" in tags:

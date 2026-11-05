@@ -248,3 +248,15 @@ def test_detail_fetch_failure_and_compare_validation(session):
     assert c.get("/compare", params={"ids": "a,b"}).status_code == 400
     assert c.get("/compare", params={"ids": f"{ids[0]},99999"}).status_code == 404
     api.app.dependency_overrides.clear()
+
+
+def test_is_relevant_filters_noise():
+    from app.classify import is_relevant
+    def rel(t):
+        return is_relevant(t, tags_for(t))
+    assert rel("제50차 장기전세주택 모집")
+    assert rel("옥정중앙역 무순위 분양 잔여세대 모집")
+    assert not rel("조직활성화 교육으로 인한 휴무 안내")
+    assert not rel("2026년 제1차 건설약정방식 매입임대주택 매입공고(수정)")
+    assert not rel("장기안심주택 2027년 4월 재계약 대상자 심사서류 제출 안내")
+    assert not rel("인천계양 A3블록 가정어린이집 운영예정자 모집공고(1회차)")

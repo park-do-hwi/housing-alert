@@ -17,7 +17,7 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .classify import sido_for, tags_for
+from .classify import is_relevant, sido_for, tags_for
 from .collectors import COLLECTORS
 from .collectors.base import RawNotice
 from .ingest import _detail
@@ -93,6 +93,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
             continue
         for r in raws:
             it = to_item(r)
+            if not is_relevant(it["title"], it["tags"]):
+                continue
             fresh[it["id"]] = it
 
     new_ids, changed_ids = [], []
@@ -112,7 +114,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
 
     # 이번에 못 가져온 것: 실패한 소스의 이전 공고는 보존, 나머지는 보존 기간 안에서만 유지
     for iid, old in prev.items():
-        if iid in merged:
+        if iid in merged or not is_relevant(old["title"], old.get("tags", ["기타"])):
             continue
         if old["source"] in failed or _keep(old, today):
             merged[iid] = old
