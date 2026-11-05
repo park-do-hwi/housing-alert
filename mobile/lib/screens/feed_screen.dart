@@ -90,17 +90,26 @@ class FeedScreen extends ConsumerWidget {
 }
 
 /// 단계(마감 임박·접수 중·접수 예정…)별 제목줄과 카드를 한 줄로 이어 보여준다.
-class _GroupedList extends StatelessWidget {
+class _GroupedList extends StatefulWidget {
   const _GroupedList({required this.list});
   final List<Notice> list;
 
   @override
+  State<_GroupedList> createState() => _GroupedListState();
+}
+
+class _GroupedListState extends State<_GroupedList> {
+  bool closedOpen = false; // 마감 단계는 기본 접힘
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final rows = <Object>[];
-    for (final (phase, items) in groupNotices(list, now)) {
+    final groups = groupNotices(widget.list, now);
+    final counts = {for (final (p, items) in groups) p: items.length};
+    final rows = <Object>[counts];
+    for (final (phase, items) in groups) {
       rows.add((phase, items.length));
-      rows.addAll(items);
+      if (phase != Phase.closed || closedOpen) rows.addAll(items);
     }
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -114,8 +123,16 @@ class _GroupedList extends StatelessWidget {
             const Divider(height: 1),
           ]);
         }
+        if (r is Map<Phase, int>) return TodaySummary(counts: r);
         final (phase, count) = r as (Phase, int);
-        return PhaseHeader(phase: phase, count: count);
+        final closed = phase == Phase.closed;
+        return PhaseHeader(
+          phase: phase,
+          count: count,
+          collapsible: closed,
+          collapsed: !closedOpen,
+          onToggle: closed ? () => setState(() => closedOpen = !closedOpen) : null,
+        );
       },
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:housing_alert/core/format.dart';
 import 'package:housing_alert/core/grouping.dart';
 import 'package:housing_alert/core/models.dart';
 import 'package:housing_alert/widgets/common.dart';
@@ -51,6 +52,14 @@ void main() {
     expect(badgeLabel(n('c', start: '2026-11-06', end: '2026-11-09'), now), '내일 접수');
     expect(badgeLabel(n('d', start: '2026-11-15', end: '2026-11-18'), now), '10일 후 접수');
     expect(badgeLabel(n('e', ann: '2026-11-01'), now), isNull);
+  });
+
+  test('짧은 금액 표기', () {
+    expect(fmtPriceShort(74520), '7.5억');
+    expect(fmtPriceShort(93780), '9.4억');
+    expect(fmtPriceShort(60000), '6억');
+    expect(fmtPriceShort(5000), '5,000만');
+    expect(fmtPriceShort(null), '-');
   });
 
   test('접수 기간 문구', () {

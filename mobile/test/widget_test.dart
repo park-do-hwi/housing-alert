@@ -304,10 +304,19 @@ void main() {
       child: MaterialApp(home: DetailScreen(notice: n)),
     ));
     await tester.pumpAndSettle();
+    // 핵심 3칸: 공급 세대·분양가 범위가 맨 위에 보인다
     expect(find.text('53세대'), findsOneWidget);
-    expect(find.text('2029.01'), findsOneWidget);
-    expect(find.text('13억 2,100만'), findsOneWidget);
+    expect(find.text('13억 2,100만'), findsWidgets); // 핵심 칸 + 주택형 표
     expect(find.text('주택형별 공급'), findsOneWidget);
+    expect(find.text('청약 일정'), findsOneWidget);
+    expect(find.text('당첨자 발표'), findsOneWidget);
+    // 부가 정보는 기본 접힘 → 펼치면 입주 예정이 보인다
+    expect(find.text('2029.01'), findsNothing);
+    await tester.scrollUntilVisible(find.text('부가 정보'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('부가 정보'));
+    await tester.pumpAndSettle();
+    expect(find.text('2029.01'), findsOneWidget);
+    expect(find.text('부산 수영구'), findsOneWidget);
   });
 
   testWidgets('상세: 주택형이 없는 LH·SH 공고도 열린다', (tester) async {

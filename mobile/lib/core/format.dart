@@ -26,6 +26,14 @@ String fmtArea(double? a) =>
 String fmtYm(String? ym) =>
     (ym == null || ym.length != 6) ? '-' : '${ym.substring(0, 4)}.${ym.substring(4)}';
 
+/// 좁은 칸용 짧은 금액: 74520 → '7.5억', 5000 → '5,000만'. 소수 첫째 자리에서 반올림.
+String fmtPriceShort(int? man) {
+  if (man == null) return '-';
+  if (man < 10000) return '${_comma(man)}만';
+  final eok = (man / 1000).round() / 10;
+  return '${eok == eok.roundToDouble() ? eok.toInt() : eok}억';
+}
+
 /// 전화번호 표기: '16887002' → '1688-7002', '0212345678' → '02-1234-5678'. 알 수 없는 형태는 그대로.
 String fmtTel(String raw) {
   final s = raw.trim();
@@ -69,6 +77,10 @@ class TypeSummary {
   String get priceRange => minPrice == null
       ? '-'
       : (minPrice == maxPrice ? fmtPriceMan(minPrice) : '${fmtPriceMan(minPrice)} ~ ${fmtPriceMan(maxPrice)}');
+
+  String get priceRangeShort => minPrice == null
+      ? '-'
+      : (minPrice == maxPrice ? fmtPriceShort(minPrice) : '${fmtPriceShort(minPrice)} ~ ${fmtPriceShort(maxPrice)}');
 
   String get areaRange => minArea == null
       ? '-'

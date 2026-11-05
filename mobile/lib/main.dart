@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/models.dart';
 import 'core/providers.dart';
+import 'core/theme.dart';
 import 'core/user_store.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/compare_screen.dart';
@@ -55,9 +56,8 @@ class _HousingAppState extends ConsumerState<HousingApp> {
     return MaterialApp.router(
       title: '분양 알리미',
       routerConfig: router,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF1565C0), useMaterial3: true),
-      darkTheme: ThemeData(
-          colorSchemeSeed: const Color(0xFF1565C0), brightness: Brightness.dark, useMaterial3: true),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: const [
