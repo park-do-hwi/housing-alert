@@ -26,6 +26,7 @@ def parse(html: str) -> list[RawNotice]:
             region="서울",
             announce_date=parse_date(tds[-2].get_text(strip=True)) if len(tds) >= 2 else None,
             url=SH_VIEW.format(seq=m.group(1)),
+            extra={"files_ref": {"src": "SH", "seq": m.group(1)}},
         ))
     return out
 

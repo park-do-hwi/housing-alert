@@ -260,3 +260,32 @@ def test_is_relevant_filters_noise():
     assert not rel("2026년 제1차 건설약정방식 매입임대주택 매입공고(수정)")
     assert not rel("장기안심주택 2027년 4월 재계약 대상자 심사서류 제출 안내")
     assert not rel("인천계양 A3블록 가정어린이집 운영예정자 모집공고(1회차)")
+
+
+def test_file_list_parsers():
+    from app.collectors.files import parse_lh, parse_sh
+    lh_rows = [
+        {"cmnAhflSn": 2, "cmnAhflNm": "공고문.hwpx", "cmnAhflSz": 100},
+        {"cmnAhflSn": 3, "cmnAhflNm": "공고문.pdf", "cmnAhflSz": 200},
+        {"cmnAhflSn": None, "cmnAhflNm": "깨진.pdf"},
+    ]
+    got = parse_lh(lh_rows)
+    assert [f["name"] for f in got] == ["공고문.pdf", "공고문.hwpx"]  # PDF 먼저, 깨진 항목 제외
+    assert got[0]["url"].endswith("lhFile.do?fileid=3")
+
+    html = ('x initParam.downList = [{"brdId":"GS0401","seq":"1","fileSeq":"2","fileSize":"86528",'
+            '"oriFileNm":"추천서.hwp","fileTp":"A"},{"brdId":"GS0401","seq":"1","fileSeq":"1",'
+            '"fileSize":"368185","oriFileNm":"공고문.pdf","fileTp":"A"}];  initInnorix();')
+    sh = parse_sh(html)
+    assert [f["name"] for f in sh] == ["공고문.pdf", "추천서.hwp"]
+    assert "innoFD.do?brdId=GS0401&seq=1&fileTp=A&fileSeq=1" in sh[0]["url"]
+    assert parse_sh("<html>첨부 없음</html>") == []
+
+
+def test_list_parsers_attach_file_refs():
+    from app.collectors import lh, sh
+    lh_items = lh.parse((FIX / "lh_list.html").read_text(encoding="utf-8", errors="ignore"))
+    assert lh_items and lh_items[0].extra["files_ref"]["src"] == "LH"
+    assert len(lh_items[0].extra["files_ref"]["p"]) == 5
+    sh_items = sh.parse((FIX / "sh_list.html").read_text(encoding="utf-8", errors="ignore"))
+    assert sh_items and sh_items[0].extra["files_ref"] == {"src": "SH", "seq": sh_items[0].ext_id}

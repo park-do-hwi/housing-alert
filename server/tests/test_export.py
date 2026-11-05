@@ -115,3 +115,61 @@ def test_write_and_load_roundtrip(tmp_path):
     assert load_previous(tmp_path / "public" / "notices.json")[0]["id"] == "LH:1"
     assert json.loads((tmp_path / "public" / "meta.json").read_text(encoding="utf-8"))["count"] == 1
     assert load_previous(tmp_path / "none.json") == []
+
+
+# ---- 공고문 파일(LH·SH) ----
+def lhf(i="1"):
+    r = lh(i)
+    r.extra = {"files_ref": {"src": "LH", "p": ["06", "07", "03", "", i]}}
+    return r
+
+
+class Files:
+    def __init__(self, value=None, boom=False):
+        self.calls, self.value, self.boom = [], value, boom
+
+    def __call__(self, fref):
+        self.calls.append(fref)
+        if self.boom:
+            raise RuntimeError("down")
+        return self.value if self.value is not None else [{"name": "공고문.pdf", "url": "https://x/1", "size": 10}]
+
+
+def runf(prev, cols, ff):
+    return build(prev, cols, Types(), today=TODAY, now=NOW, fetch_files=ff)
+
+
+def test_files_fetched_once_and_ref_hidden_from_info():
+    ff = Files()
+    items, _ = runf([], {"LH": lambda: [lhf()]}, ff)
+    it = items[0]
+    assert it["info"]["files"][0]["name"] == "공고문.pdf"
+    assert "files_ref" not in it["info"] and it["fref"]["src"] == "LH"
+    assert len(ff.calls) == 1
+    # 다음 실행: 이미 있으니 다시 조회하지 않고 파일 정보도 유지
+    ff2 = Files()
+    items2, _ = runf(items, {"LH": lambda: [lhf()]}, ff2)
+    assert ff2.calls == [] and items2[0]["info"]["files"][0]["name"] == "공고문.pdf"
+
+
+def test_files_empty_or_error_is_retried_only_while_young():
+    items, _ = runf([], {"LH": lambda: [lhf()]}, Files(value=[]))
+    assert "files" not in items[0]["info"] and items[0]["fchk"] == TODAY.isoformat()
+    ff = Files()  # 처음 본 직후라 다음 실행에서 다시 시도
+    items2, _ = runf(items, {"LH": lambda: [lhf()]}, ff)
+    assert len(ff.calls) == 1 and items2[0]["info"]["files"]
+    # 오래된(처음 본 지 4일 넘은) 공고는 확인 기록이 있으면 더 이상 시도하지 않음
+    old, _ = runf([], {"LH": lambda: [lhf()]}, Files(value=[]))
+    old[0]["first_seen"] = datetime(2026, 10, 25, tzinfo=timezone.utc).isoformat()
+    ff3 = Files()
+    runf(old, {"LH": lambda: [lhf()]}, ff3)
+    assert ff3.calls == []
+    # 조회 실패는 기록 없이 다음에 재시도
+    items4, _ = runf([], {"LH": lambda: [lhf()]}, Files(boom=True))
+    assert "fchk" not in items4[0] and "files" not in items4[0]["info"]
+
+
+def test_files_not_requested_for_applyhome():
+    ff = Files()
+    runf([], {"APPLYHOME": lambda: [ah()]}, ff)
+    assert ff.calls == []

@@ -28,6 +28,8 @@ RETAIN_DAYS = 30        # 접수 마감 후 목록에 남기는 기간
 TYPES_PER_RUN = 150     # 한 번 실행에서 주택형을 새로 가져올 최대 공고 수
 TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을 새로 안 가져옴
 REF_KEYS = ("op", "manage_no", "pblanc_no")
+FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
+FILES_RETRY_DAYS = 3    # 파일이 아직 없을 때, 처음 본 뒤 이 기간 동안만 다시 확인
 
 
 def stable_id(source: str, ext_id: str) -> str:
@@ -46,6 +48,7 @@ def _hash(item: dict) -> str:
 def to_item(r: RawNotice) -> dict:
     info = _detail(r)
     ref = {k: info.pop(k) for k in REF_KEYS if k in info}
+    fref = info.pop("files_ref", None)  # 공고문 파일 조회용 참조(앱에는 필요 없음)
     item = {
         "id": stable_id(r.source, r.ext_id),
         "source": r.source,
@@ -59,6 +62,8 @@ def to_item(r: RawNotice) -> dict:
     }
     if ref:
         item["ref"] = ref
+    if fref:
+        item["fref"] = fref
     return item
 
 
@@ -72,8 +77,9 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None) -> tuple[list[dict], dict]:
-    """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict]"""
+          now: datetime | None = None, fetch_files=None) -> tuple[list[dict], dict]:
+    """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
+    fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
     now = now or datetime.now(timezone.utc)
     prev = {p["id"]: p for p in previous}
@@ -108,6 +114,10 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
             it["first_seen"] = old.get("first_seen", now.isoformat())
             if "types" in old:
                 it["types"] = old["types"]
+            if old.get("info", {}).get("files"):
+                it["info"]["files"] = old["info"]["files"]
+            if "fchk" in old:
+                it["fchk"] = old["fchk"]
             if _hash(old) != _hash(it):
                 changed_ids.append(iid)
         merged[iid] = it
@@ -139,6 +149,9 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         if types:  # 아직 공개 전이라 빈 응답이면 저장하지 않고 다음 실행에서 다시 시도
             it["types"] = types
 
+    if fetch_files:
+        _fill_files(merged, fetch_files, today, now)
+
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
         "generated_at": now.isoformat(),
@@ -148,6 +161,39 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         "changed": changed_ids,
     }
     return items, meta
+
+
+def _fill_files(merged: dict, fetch_files, today: date, now: datetime) -> None:
+    """파일이 아직 없는 LH·SH 공고만 조회한다. 한 번에 FILES_PER_RUN 건까지.
+    조회했는데 비어 있으면 fchk(확인한 날)를 남기고, 처음 보인 지 FILES_RETRY_DAYS 일 안에서만 다시 시도한다."""
+    budget = FILES_PER_RUN
+    # 마감이 가까운(급한) 공고부터
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        if budget <= 0:
+            break
+        fref = it.get("fref")
+        if not fref or it.get("info", {}).get("files"):
+            continue
+        first = it.get("first_seen")
+        young = bool(first) and (
+            now.replace(tzinfo=None) - datetime.fromisoformat(first).replace(tzinfo=None)
+        ).days <= FILES_RETRY_DAYS
+        if it.get("fchk") and not young:
+            continue
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
+            continue
+        budget -= 1
+        try:
+            files = fetch_files(fref)
+        except Exception:
+            log.exception("files fetch failed: %s", it["id"])
+            continue
+        if files:
+            it.setdefault("info", {})["files"] = files
+            it.pop("fchk", None)
+        else:
+            it["fchk"] = today.isoformat()
 
 
 def write(out: Path, items: list[dict], meta: dict) -> None:
@@ -175,7 +221,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO)
     out = Path(args.out)
-    items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types)
+    from .collectors import files
+
+    items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
+                        fetch_files=files.fetch_files)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)
