@@ -55,6 +55,20 @@ def find_photo(homepage: str) -> str | None:
     return str(h.url) if str(h.url).startswith("https") else img
 
 
+def is_map_like(url: str) -> bool:
+    """지도·도면 같은 그림인지(조감도 사진이 아닌지). 색이 아주 선명한 픽셀이 많으면 지도로 본다.
+    (실제 단지 사진은 선명한 픽셀이 10% 안쪽, 지구 위치 지도는 20% 넘게 나왔다.)"""
+    import io
+
+    from PIL import Image
+
+    r = requests.get(url, headers=UA, timeout=10)
+    r.raise_for_status()
+    im = Image.open(io.BytesIO(r.content)).convert("HSV").resize((64, 64))
+    vivid = sum(1 for _, s, v in im.getdata() if s > 140 and v > 150) / 4096
+    return vivid > 0.15
+
+
 def search_plan(item: dict, type_label: str = "", key: str | None = None):
     """평면도(참고): '단지명 [84A] 평면도' 이미지 검색 결과."""
     return search_photo(item, key, kind=f"{type_label} 평면도".strip())
@@ -76,6 +90,12 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도") ->
     for d in r.json().get("documents", []):
         th = d.get("thumbnail_url") or ""
         if th.startswith("https://") and (d.get("width") or 0) >= 400 and not BAD.search(d.get("image_url", "")):
+            if kind == "조감도":
+                try:
+                    if is_map_like(th):
+                        continue
+                except Exception:
+                    pass  # 판별 실패는 그냥 쓴다
             hi = d.get("image_url") or ""
             return th, (hi if hi.startswith("https://") and re.search(r"\.(jpe?g|webp|png)(\?|$)", hi, re.I) else None)
     return None

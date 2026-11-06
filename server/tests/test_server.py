@@ -419,3 +419,14 @@ def test_plan_per_type():
 
     _fill_plan(items, fake, today)
     assert asked == ["84B", "59A"] and [p["t"] for p in items["a"]["plans"]] == ["84B", "59A"]
+
+
+def test_photo_validate_drops_map_like():
+    from datetime import date
+    from app.export import _fill_photo
+
+    today = date(2026, 11, 7)
+    items = {"a": {"id": "a", "source": "APPLYHOME", "apply_end": "2026-11-20", "photo": "https://search1.kakaocdn.net/m.jpg"},
+             "b": {"id": "b", "source": "APPLYHOME", "apply_end": "2026-11-21", "photo": "https://search1.kakaocdn.net/p.jpg"}}
+    _fill_photo(items, lambda hp: None, today, search_photo=lambda it: None, validate=lambda u: u.endswith("m.jpg"))
+    assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == 1

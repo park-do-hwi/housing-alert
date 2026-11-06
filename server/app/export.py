@@ -84,7 +84,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -125,7 +125,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "plchk", "sgg", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "sgg", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -164,7 +164,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
     if geocode:
         _fill_geo(merged, geocode, today)
     if find_photo:
-        _fill_photo(merged, find_photo, today, search_photo)
+        _fill_photo(merged, find_photo, today, search_photo, validate)
     if search_plan:
         _fill_plan(merged, search_plan, today)
     if market:
@@ -242,10 +242,22 @@ def _fill_geo(merged: dict, geocode, today: date) -> None:
             it["gchk"] = today.isoformat()
 
 
-def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> None:
+def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, validate=None) -> None:
     """분양 홈페이지 주소가 있고 아직 이미지가 없는 공고만, 한 번에 PHOTO_PER_RUN 건까지 조회한다.
     못 찾은 것은 pchk(확인한 날)를 남기고 PHOTO_RETRY_DAYS 일 뒤에 다시 본다(사진은 나중에 올라오기도 한다)."""
     budget = PHOTO_PER_RUN
+    if validate:  # 예전에 저장한 검색 결과 중 지도 같은 그림은 빼고 다시 찾게 한다(검사한 것은 pv=1)
+        for it in merged.values():
+            u = it.get("photo") or ""
+            if "kakaocdn.net" in u and not it.get("pv"):
+                try:
+                    if validate(u):
+                        for k in ("photo", "photo_hi", "pchk"):
+                            it.pop(k, None)  # 바로 다시 찾는다(새 검색은 지도를 거른다)
+                    else:
+                        it["pv"] = 1
+                except Exception:
+                    log.warning("photo validate failed: %s", it["id"])
 
     def stale_thumb(x):  # 작은 썸네일만 있는 것(상세에서 흐릿함)을 먼저 원본으로 바꾼다
         return not ("kakaocdn.net" in (x.get("photo") or "") and not x.get("photo_hi"))
@@ -282,6 +294,8 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> Non
                 log.warning("photo search failed: %s", it["id"])
         if url:
             it["photo"] = url
+            if search_photo is not None and "kakaocdn.net" in url:
+                it["pv"] = 1
             it.pop("pchk", None)
         else:
             it["pchk"] = today.isoformat()
@@ -410,6 +424,7 @@ def main(argv=None):
                         geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
                         find_photo=photo.find_photo,
                         search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None,
+                        validate=photo.is_map_like if os.environ.get("KAKAO_REST_KEY") else None,
                         search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
                         market=(mk.sgg_of, lambda sgg: mk.summarize(
                             [t for ym in mk.months_back(date.today()) for t in mk.fetch_trades(sgg, ym)],
