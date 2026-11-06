@@ -84,18 +84,25 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도") ->
     if not key or len(q.replace(" ", "")) < 3:
         return None
     r = requests.get("https://dapi.kakao.com/v2/search/image",
-                     params={"query": f"{q} {kind}", "size": 5, "sort": "accuracy"},
+                     params={"query": f"{q} {kind}", "size": 10, "sort": "accuracy"},
                      headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
     r.raise_for_status()
+    cands = []
     for d in r.json().get("documents", []):
         th = d.get("thumbnail_url") or ""
-        if th.startswith("https://") and (d.get("width") or 0) >= 400 and not BAD.search(d.get("image_url", "")):
-            if kind == "조감도":
-                try:
-                    if is_map_like(th):
-                        continue
-                except Exception:
-                    pass  # 판별 실패는 그냥 쓴다
-            hi = d.get("image_url") or ""
-            return th, (hi if hi.startswith("https://") and re.search(r"\.(jpe?g|webp|png)(\?|$)", hi, re.I) else None)
+        hi = d.get("image_url") or ""
+        hi = hi if hi.startswith("https://") and re.search(r"\.(jpe?g|webp|png)(\?|$)", hi, re.I) else None
+        w = d.get("width") or 0
+        if th.startswith("https://") and w >= 400 and not BAD.search(d.get("image_url", "")):
+            cands.append((th, hi, w))
+    # 상세에서 선명하게 보이도록 큰 원본(가로 800 이상, 원본 주소 있음)을 먼저, 그 안에서는 관련도 순서 그대로
+    cands.sort(key=lambda c: not (c[1] and c[2] >= 800))
+    for th, hi, _ in cands:
+        if kind == "조감도":
+            try:
+                if is_map_like(th):
+                    continue
+            except Exception:
+                pass  # 판별 실패는 그냥 쓴다
+        return th, hi
     return None
