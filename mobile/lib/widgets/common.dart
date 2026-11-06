@@ -59,13 +59,13 @@ class ApartmentThumb extends StatelessWidget {
         ),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (showRegion) const SizedBox(height: 40), // 위에 얹히는 배지와 겹치지 않게
+        if (showRegion && h > 120) const SizedBox(height: 40), // 위에 얹히는 배지와 겹치지 않게
         Icon(iconFor(notice.tags), size: (size < h ? size : h) * 0.38, color: tone.fg),
         if (showRegion && notice.sido.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          SizedBox(height: size < 70 ? 1 : 4),
           Text(notice.sido,
               maxLines: 1,
-              style: TextStyle(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600, color: tone.fg)),
+              style: TextStyle(fontSize: size < 70 ? 11 : 14, height: size < 70 ? 14 / 11 : 20 / 14, fontWeight: FontWeight.w600, color: tone.fg)),
         ],
       ]),
     );
@@ -135,8 +135,8 @@ class NoticeTile extends StatelessWidget {
   final VoidCallback onTap;
   final DateTime? now; // 테스트용. 기본은 현재 시각
 
-  static const double imageW = 78;
-  static const double imageH = 96;
+  static const double imageW = 72;
+  static const double imageH = 72;
 
   @override
   Widget build(BuildContext context) {
@@ -174,28 +174,26 @@ class NoticeTile extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Stack(children: [
-                  ApartmentThumb(notice: notice, size: imageW, height: imageH, showRegion: true),
-                  Positioned(
-                    left: 6,
-                    top: 6,
-                    right: 6,
-                    child: Wrap(spacing: 4, runSpacing: 4, children: [
+                ApartmentThumb(notice: notice, size: imageW, height: imageH, showRegion: true),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Wrap(spacing: 4, runSpacing: 2, crossAxisAlignment: WrapCrossAlignment.center, children: [
                       if (badge != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(phaseIcon(phase), size: 12, color: tone.fg),
                             const SizedBox(width: 3),
                             Text(badge,
                                 style: TextStyle(
-                                    fontSize: 10, height: 14 / 10, fontWeight: FontWeight.w600, color: tone.fg)),
+                                    fontSize: 11, height: 16 / 11, fontWeight: FontWeight.w600, color: tone.fg)),
                           ]),
                         ),
                       if (notice.isNew(at))
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
                               color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
                           child: Text('NEW',
@@ -205,44 +203,24 @@ class NoticeTile extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                   color: theme.colorScheme.onPrimary)),
                         ),
+                      for (final t in tags.where((t) => t != '정정')) TagChip(t),
+                      if (tags.contains('정정')) const TagChip('정정'),
                     ]),
-                  ),
-                ]),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (tags.isNotEmpty)
-                      Wrap(spacing: 4, runSpacing: 4, children: [
-                        for (final t in tags.where((t) => t != '정정')) TagChip(t),
-                        if (tags.contains('정정')) const TagChip('정정'),
-                      ]),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(notice.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium
-                            ?.copyWith(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
-                    Row(children: [
-                      Icon(Icons.place_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 3),
-                      Expanded(child: Text(place, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
-                    ]),
-                    if (size.isNotEmpty)
-                      Row(children: [
-                        Icon(Icons.apartment_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 3),
-                        Expanded(child: Text(size, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
-                      ]),
-                    if (price != null && price != '-') ...[
-                      const SizedBox(height: 2),
+                            ?.copyWith(fontSize: 14, height: 19 / 14, fontWeight: FontWeight.w600)),
+                    Text([place, if (size.isNotEmpty) size].join(' · '),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: grey),
+                    if (price != null && price != '-')
                       Text('분양가 $price',
                           style: TextStyle(
-                              fontSize: 14,
-                              height: 20 / 14,
+                              fontSize: 13,
+                              height: 19 / 13,
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.primary)),
-                    ],
                   ]),
                 ),
               ]),

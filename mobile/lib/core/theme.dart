@@ -97,9 +97,16 @@ ThemeData buildTheme(Brightness b) {
     navigationBarTheme: NavigationBarThemeData(
       height: 60,
       labelPadding: EdgeInsets.zero,
-      labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(fontSize: 11, height: 14 / 11, fontWeight: FontWeight.w500, color: scheme.onSurface)),
-      iconTheme: WidgetStatePropertyAll(IconThemeData(size: 22, color: scheme.onSurface)),
+      labelTextStyle: WidgetStateProperty.resolveWith((st) {
+        final on = st.contains(WidgetState.selected);
+        return TextStyle(
+            fontSize: 11,
+            height: 14 / 11,
+            fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+            color: on ? scheme.primary : scheme.onSurfaceVariant);
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(
+          size: 22, color: st.contains(WidgetState.selected) ? scheme.primary : scheme.onSurfaceVariant)),
       backgroundColor: scheme.surfaceContainerLow,
       indicatorColor: dark ? const Color(0xFF203A69) : const Color(0xFFDBEAFE),
     ),
