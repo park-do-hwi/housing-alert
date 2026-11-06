@@ -8,6 +8,7 @@ import '../core/models.dart';
 import '../core/providers.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import '../widgets/place_map.dart';
 import '../widgets/timeline.dart';
 
 class DetailScreen extends ConsumerWidget {
@@ -63,6 +64,7 @@ class DetailScreen extends ConsumerWidget {
         _Summary(notice: notice, now: now),
         const SizedBox(height: Gap.md),
         _Highlights(notice: notice),
+        if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),

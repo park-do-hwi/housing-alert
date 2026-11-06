@@ -321,3 +321,31 @@ def test_applyhome_stage_dates():
     assert (ex["special_start"].isoformat(), ex["special_end"].isoformat()) == ("2026-11-02", "2026-11-16")
     assert ex["rank1_start"].isoformat() == "2026-11-17"
     assert ex["rank2_start"] is None
+
+
+def test_geo_search_query_and_fill():
+    from app.collectors.geo import search_query
+    from app.export import _fill_geo
+    from datetime import date
+
+    assert "도청이전신도시" in search_query("도청이전신도시 RH10-2BL 국민임대주택 자격완화 추가모집(2026.10.27)")
+    assert "BL" not in search_query("도청이전신도시 RH10-2BL 국민임대주택")
+    assert search_query("[부산] 2026년 2차 일반 매입임대주택 입주자 모집 공고") == ""
+
+    today = date(2026, 11, 6)
+    items = {
+        "a": {"id": "a", "title": "x", "apply_end": "2026-11-20"},
+        "b": {"id": "b", "title": "y", "apply_end": "2026-11-21"},
+        "c": {"id": "c", "title": "z", "apply_end": "2026-11-22", "geo": {"lat": 1, "lng": 2, "approx": False}},
+        "d": {"id": "d", "title": "w", "apply_end": "2026-11-23", "gchk": "2026-11-04"},
+    }
+    seen = []
+
+    def fake(it):
+        seen.append(it["id"])
+        return {"lat": 37.5, "lng": 127.0, "approx": True} if it["id"] == "a" else None
+
+    _fill_geo(items, fake, today)
+    assert seen == ["a", "b"]          # 이미 있는 것(c)·최근에 못 찾은 것(d)은 건너뜀
+    assert items["a"]["geo"]["approx"] is True
+    assert items["b"]["gchk"] == "2026-11-06" and "geo" not in items["b"]

@@ -29,6 +29,8 @@ TYPES_PER_RUN = 150     # 한 번 실행에서 주택형을 새로 가져올 최
 TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을 새로 안 가져옴
 REF_KEYS = ("op", "manage_no", "pblanc_no")
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
+GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
+GEO_RETRY_DAYS = 7      # 위치를 못 찾았을 때 다시 시도하는 간격
 FILES_RETRY_DAYS = 3    # 파일이 아직 없을 때, 처음 본 뒤 이 기간 동안만 다시 확인
 
 
@@ -77,7 +79,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -118,6 +120,9 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
+            for k in ("geo", "gchk"):
+                if k in old:
+                    it[k] = old[k]
             if _hash(old) != _hash(it):
                 changed_ids.append(iid)
         merged[iid] = it
@@ -151,6 +156,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
 
     if fetch_files:
         _fill_files(merged, fetch_files, today, now)
+    if geocode:
+        _fill_geo(merged, geocode, today)
 
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
@@ -196,6 +203,34 @@ def _fill_files(merged: dict, fetch_files, today: date, now: datetime) -> None:
             it["fchk"] = today.isoformat()
 
 
+def _fill_geo(merged: dict, geocode, today: date) -> None:
+    """좌표가 없는 공고만 한 번에 GEO_PER_RUN 건까지 조회한다. 못 찾은 것은 gchk(확인한 날)를 남기고
+    GEO_RETRY_DAYS 일 뒤에 다시 시도한다."""
+    budget = GEO_PER_RUN
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        if budget <= 0:
+            break
+        if it.get("geo"):
+            continue
+        chk = it.get("gchk")
+        if chk and (today - date.fromisoformat(chk)).days < GEO_RETRY_DAYS:
+            continue
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
+            continue
+        budget -= 1
+        try:
+            geo = geocode(it)
+        except Exception:
+            log.exception("geocode failed: %s", it["id"])
+            continue
+        if geo:
+            it["geo"] = geo
+            it.pop("gchk", None)
+        else:
+            it["gchk"] = today.isoformat()
+
+
 def write(out: Path, items: list[dict], meta: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     # 임시 파일에 쓴 뒤 교체해서, 쓰는 도중에 앱이 반쪽짜리 파일을 읽지 않게 한다
@@ -223,8 +258,11 @@ def main(argv=None):
     out = Path(args.out)
     from .collectors import files
 
+    from .collectors import geo
+
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
-                        fetch_files=files.fetch_files)
+                        fetch_files=files.fetch_files,
+                        geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)

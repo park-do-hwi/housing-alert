@@ -29,6 +29,21 @@ class HousingType {
       );
 }
 
+/// 공고 위치. approx 가 true 면 주소가 아니라 이름으로 찾은 대략적인 위치다.
+class GeoPoint {
+  const GeoPoint(this.lat, this.lng, {this.approx = false});
+  final double lat;
+  final double lng;
+  final bool approx;
+
+  static GeoPoint? tryParse(Object? j) {
+    if (j is! Map) return null;
+    final lat = j['lat'], lng = j['lng'];
+    if (lat is! num || lng is! num) return null;
+    return GeoPoint(lat.toDouble(), lng.toDouble(), approx: j['approx'] == true);
+  }
+}
+
 /// 공고 한 건. notices.json 의 항목과 같은 모양이다.
 /// id 는 '출처:원본ID' 형태의 문자열이라 수집을 다시 해도 바뀌지 않는다.
 class Notice {
@@ -44,6 +59,7 @@ class Notice {
     this.firstSeen,
     this.info = const {},
     this.types,
+    this.geo,
   });
 
   final String id;
@@ -57,6 +73,7 @@ class Notice {
   final DateTime? firstSeen; // 서버가 이 공고를 처음 본 시각
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
+  final GeoPoint? geo; // 위치. 못 찾았으면 null
 
   factory Notice.fromJson(Map<String, dynamic> j) => Notice(
         id: j['id'].toString(),
@@ -72,6 +89,7 @@ class Notice {
         types: (j['types'] as List?)
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
             .toList(),
+        geo: GeoPoint.tryParse(j['geo']),
       );
 
   bool get isResult => tags.contains('결과');
