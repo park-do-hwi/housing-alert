@@ -34,6 +34,13 @@ String fmtPriceShort(int? man) {
   return '${eok == eok.roundToDouble() ? eok.toInt() : eok}억';
 }
 
+/// 파일 크기: 1536000 → '1.5MB'.
+String fmtBytes(int b) {
+  if (b >= 1048576) return '${(b / 1048576).toStringAsFixed(1)}MB';
+  if (b >= 1024) return '${(b / 1024).round()}KB';
+  return '${b}B';
+}
+
 /// 전화번호 표기: '16887002' → '1688-7002', '0212345678' → '02-1234-5678'. 알 수 없는 형태는 그대로.
 String fmtTel(String raw) {
   final s = raw.trim();

@@ -107,6 +107,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        Text('화면 테마', style: t.titleMedium),
+        const SizedBox(height: 8),
+        SegmentedButton<ThemeMode>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('화이트')),
+            ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('블랙')),
+            ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.phone_android), label: Text('기기 설정')),
+          ],
+          selected: {ref.watch(themeModeProvider)},
+          onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
+        ),
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 8),
+        Text('관심 조건', style: t.titleMedium),
+        const SizedBox(height: 4),
+        Text('정하지 않으면 모든 공고가 보여요. 고르면 목록과 알림이 그 조건에 맞춰져요.', style: t.bodySmall),
+        const SizedBox(height: 8),
         SubscriptionEditor(
           key: ValueKey(editorKey),
           initial: s,

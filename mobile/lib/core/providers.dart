@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +14,25 @@ final prefsProvider = Provider<SharedPreferences>((_) => throw UnimplementedErro
 /// 내 정보 파일. main()에서 override 한다.
 final userStoreProvider = Provider<UserStore>((_) => throw UnimplementedError());
 
-final fileIoProvider = Provider<FileIo>((_) => PickerFileIo());
+/// 화면 테마. 처음에는 흰색(라이트)이고, 설정에서 다크·시스템 따라가기로 바꿀 수 있다.
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  static const _key = 'theme_mode';
+
+  @override
+  ThemeMode build() {
+    final v = ref.read(prefsProvider).getString(_key);
+    return ThemeMode.values.where((m) => m.name == v).firstOrNull ?? ThemeMode.light;
+  }
+
+  Future<void> set(ThemeMode m) async {
+    state = m;
+    await ref.read(prefsProvider).setString(_key, m.name);
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+final fileIoProvider =Provider<FileIo>((_) => PickerFileIo());
 
 final repositoryProvider = Provider<NoticeRepository>(
     (ref) => NoticeRepository(AppConfig.dataBase, ref.read(prefsProvider)));

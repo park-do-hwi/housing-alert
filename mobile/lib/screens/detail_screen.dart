@@ -75,6 +75,8 @@ class DetailScreen extends ConsumerWidget {
         Text('${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)} · 공고 ${fmtDate(notice.announceDate)}',
             style: t.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: Gap.lg),
+        _Summary(notice: notice, now: now),
+        const SizedBox(height: Gap.md),
         _Highlights(notice: notice),
         ..._schedule(context, now),
         ..._types(context),
@@ -160,7 +162,8 @@ class DetailScreen extends ConsumerWidget {
     if (raw is! List || raw.isEmpty) return const [];
     final files = [
       for (final f in raw)
-        if (f is Map && f['url'] != null) (name: '${f['name'] ?? '공고문'}', url: '${f['url']}'),
+        if (f is Map && f['url'] != null)
+          (name: '${f['name'] ?? '공고문'}', url: '${f['url']}', size: f['size']),
     ];
     if (files.isEmpty) return const [];
     return [
@@ -174,10 +177,33 @@ class DetailScreen extends ConsumerWidget {
             title: Text(f.name, maxLines: 2, overflow: TextOverflow.ellipsis),
             subtitle: Text(_fileKind(f.name)),
             trailing: const Icon(Icons.open_in_new, size: 18),
-            onTap: () => _open(context, f.url),
+            onTap: () => _confirmDownload(context, f.name, f.url, f.size),
           ),
         ),
     ];
+  }
+
+  /// 파일은 눌렀다고 바로 받지 않고, 이름·형식·크기를 보여준 뒤 확인을 받는다.
+  Future<void> _confirmDownload(BuildContext context, String name, String url, Object? size) async {
+    final bytes = size is num ? size.toInt() : int.tryParse('$size');
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('파일을 내려받을까요?'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text([_fileKind(name).split(' · ').first, if (bytes != null) fmtBytes(bytes)].join(' · ')),
+          const SizedBox(height: 8),
+          const Text('브라우저로 열려 기기에 저장될 수 있어요.'),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('내려받기')),
+        ],
+      ),
+    );
+    if (yes == true && context.mounted) await _open(context, url);
   }
 
   static IconData _fileIcon(String name) =>
@@ -188,6 +214,85 @@ class DetailScreen extends ConsumerWidget {
     if (n.endsWith('.pdf')) return 'PDF';
     if (n.endsWith('.hwp') || n.endsWith('.hwpx')) return '한글(HWP) · 한글 뷰어 앱이 필요할 수 있어요';
     return '첨부 파일';
+  }
+}
+
+/// 한눈에 보기: 공고 데이터에서 핵심만 문장으로 정리한다(없는 값은 빼고, 지어내지 않는다).
+class _Summary extends StatelessWidget {
+  const _Summary({required this.notice, required this.now});
+  final Notice notice;
+  final DateTime now;
+
+  List<(IconData, String)> lines() {
+    final n = notice;
+    final out = <(IconData, String)>[];
+    final badge = badgeLabel(n, now);
+    final phase = phaseOf(n, now);
+    final end = n.applyEnd;
+    final start = n.infoDate('apply_start');
+    switch (phase) {
+      case Phase.closingSoon || Phase.open:
+        out.add((Icons.event_available_outlined,
+            '지금 접수 중${badge == null ? '' : ' ($badge)'}${end == null ? '' : ' · ${fmtMdW(end)} 마감'}'));
+      case Phase.upcoming:
+        out.add((Icons.event_outlined,
+            '접수 예정${start == null ? '' : ' · ${fmtMdW(start)} 시작'}${end == null ? '' : ' ~ ${fmtMdW(end)}'}'));
+      case Phase.closed:
+        out.add((Icons.event_busy_outlined, '접수가 끝났어요${end == null ? '' : ' (${fmtMdW(end)} 마감)'}'));
+      case Phase.undated:
+        out.add((Icons.help_outline, '접수 일정은 원문 공고에서 확인하세요'));
+    }
+    final tags = n.tags.where((x) => x != '기타').join('·');
+    final hh = n.infoInt('total_households');
+    final head = [
+      if (n.sido.isNotEmpty) n.sido,
+      if (tags.isNotEmpty) tags,
+    ].join(' ');
+    if (head.isNotEmpty || hh != null) {
+      out.add((Icons.apartment_outlined, [if (head.isNotEmpty) head, if (hh != null) '총 $hh세대'].join(' · ')));
+    }
+    final types = n.types;
+    if (types != null && types.isNotEmpty) {
+      final s = TypeSummary(types);
+      final parts = [
+        if (s.minArea != null) '전용 ${s.areaRange}',
+        if (s.minPrice != null) '분양가 ${s.priceRange}',
+      ];
+      if (parts.isNotEmpty) out.add((Icons.payments_outlined, parts.join(' · ')));
+    }
+    final win = n.infoDate('winner_date');
+    if (win != null) out.add((Icons.emoji_events_outlined, '당첨자 발표 ${fmtMdW(win)}'));
+    final ym = n.str('move_in_ym');
+    if (ym != null) out.add((Icons.key_outlined, '입주 예정 ${fmtYm(ym)}'));
+    final files = n.info['files'];
+    if (files is List && files.isNotEmpty) {
+      out.add((Icons.description_outlined, '공고문 파일 ${files.length}개 · 아래에서 확인'));
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('한눈에 보기', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: Gap.sm),
+          for (final (icon, text) in lines())
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(icon, size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: Gap.sm),
+                Expanded(child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(height: 1.4))),
+              ]),
+            ),
+        ]),
+      ),
+    );
   }
 }
 

@@ -39,7 +39,8 @@ class HousingApp extends ConsumerStatefulWidget {
 
 class _HousingAppState extends ConsumerState<HousingApp> {
   late final GoRouter router = GoRouter(
-    initialLocation: ref.read(userDataProvider).onboarded ? '/' : '/onboarding',
+    // 처음부터 공고를 보여준다. 관심 조건은 '알림 설정'에서 나중에 정한다.
+    initialLocation: '/',
     routes: [
       GoRoute(path: '/', builder: (_, _) => const HomeShell()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
@@ -58,6 +59,7 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       routerConfig: router,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
+      themeMode: ref.watch(themeModeProvider),
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: const [

@@ -65,7 +65,12 @@ class FakeFileIo implements FileIo {
   Future<Uint8List?> pick() async => pickBytes;
 }
 
-List<Override> _overrides({List<Notice>? items, UserStore? store, FileIo? io, bool stale = false}) => [
+late SharedPreferences _fakePrefs;
+
+List<Override> _overrides(
+        {List<Notice>? items, UserStore? store, FileIo? io, bool stale = false, SharedPreferences? prefs}) =>
+    [
+      prefsProvider.overrideWithValue(prefs ?? _fakePrefs),
       userStoreProvider.overrideWithValue(store ?? UserStore.inMemory()),
       noticeDataProvider.overrideWith(
           (ref) async => NoticeData(items: items ?? const [], generatedAt: DateTime(2026, 11, 5, 18), stale: stale)),
@@ -73,6 +78,11 @@ List<Override> _overrides({List<Notice>? items, UserStore? store, FileIo? io, bo
     ];
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    _fakePrefs = await SharedPreferences.getInstance();
+  });
+
   // ---------- 모델 ----------
   test('Notice.daysLeft: 마감 전/당일/지남/없음', () {
     final now = DateTime(2026, 11, 5, 15);
@@ -306,7 +316,10 @@ void main() {
     await tester.pumpAndSettle();
     // 핵심 3칸: 공급 세대·분양가 범위가 맨 위에 보인다
     expect(find.text('53세대'), findsOneWidget);
-    expect(find.text('13억 2,100만'), findsWidgets); // 핵심 칸 + 주택형 표
+    expect(find.text('한눈에 보기'), findsOneWidget);
+    expect(find.textContaining('총 53세대'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('13억 2,100만'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('13억 2,100만'), findsOneWidget); // 주택형 표
     expect(find.text('주택형별 공급'), findsOneWidget);
     expect(find.text('청약 일정'), findsOneWidget);
     expect(find.text('당첨자 발표'), findsOneWidget);
