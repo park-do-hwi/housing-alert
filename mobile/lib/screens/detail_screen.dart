@@ -64,6 +64,8 @@ class DetailScreen extends ConsumerWidget {
         _Summary(notice: notice, now: now),
         const SizedBox(height: Gap.md),
         _Highlights(notice: notice),
+        const SizedBox(height: Gap.sm),
+        _ApplyButton(notice: notice, open: (u) => _open(context, u)),
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
@@ -144,7 +146,7 @@ class DetailScreen extends ConsumerWidget {
           shape: const Border(),
           collapsedShape: const Border(),
           title: Text('${types.length}개 주택형 · 금액은 최고 분양가 기준'),
-          children: [Padding(padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md), child: _TypesTable(types))],
+          children: [Padding(padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md), child: _TypesTable(types, notice))],
         ),
       ),
     ];
@@ -442,37 +444,94 @@ class _MoreInfo extends StatelessWidget {
 }
 
 class _TypesTable extends StatelessWidget {
-  const _TypesTable(this.types);
+  const _TypesTable(this.types, this.notice);
   final List<HousingType> types;
+  final Notice notice;
+
+  /// '084.9500A' -> '84A'  (서버의 평면도 이름 규칙과 같다)
+  static String label(String type) {
+    final m = RegExp(r'^0*(\d+)(?:\.\d+)?\s*([A-Za-z가-힣]*)').firstMatch(type);
+    return m == null ? type : '${m.group(1)}${m.group(2)}';
+  }
+
+  void _showPlan(BuildContext context, HousingType t) {
+    final lb = label(t.type);
+    final plan = notice.plans.where((p) => p.label == lb).firstOrNull;
+    if (plan == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(notice.plans.isEmpty ? '평면도를 아직 찾지 못했어요' : '$lb 평면도는 찾지 못했어요')));
+      return;
+    }
+    Widget img(String url, {String? hi}) => Image.network(hi ?? url,
+        fit: BoxFit.contain, errorBuilder: (_, _, _) => hi != null ? img(url) : const SizedBox.shrink());
+    showDialog(
+      context: context,
+      builder: (c) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+            child: Row(children: [
+              Expanded(child: Text('${fmtAreaPy(t.exclusiveArea)} · $lb 평면도 (참고)', style: Theme.of(c).textTheme.titleSmall)),
+              IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close)),
+            ]),
+          ),
+          Flexible(child: InteractiveViewer(child: ColoredBox(color: Colors.white, child: img(plan.img, hi: plan.hi)))),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text('이미지 검색 결과라 다른 단지의 평면도일 수 있어요. 정확한 구조는 원문 공고를 확인하세요.',
+                style: Theme.of(c).textTheme.bodySmall),
+          ),
+        ]),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final head = Theme.of(context).textTheme.labelMedium;
-    Widget cell(String s, {TextStyle? style, TextAlign align = TextAlign.right}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-          child: Text(s, style: style, textAlign: align),
-        );
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1.2),
-        1: FlexColumnWidth(1.6),
-        2: FlexColumnWidth(0.9),
-      },
-      border: TableBorder(horizontalInside: BorderSide(color: Theme.of(context).dividerColor)),
-      children: [
-        TableRow(children: [
-          cell('전용', style: head, align: TextAlign.left),
-          cell('최고 분양가', style: head),
-          cell('세대', style: head),
+    final theme = Theme.of(context);
+    final head = theme.textTheme.labelMedium;
+    Widget cell(String s, {TextStyle? style, TextAlign align = TextAlign.right, VoidCallback? onTap, bool plan = false}) {
+      final text = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(mainAxisAlignment: align == TextAlign.right ? MainAxisAlignment.end : MainAxisAlignment.start, children: [
+          Flexible(child: Text(s, style: style, textAlign: align)),
+          if (plan) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.grid_view_rounded, size: 14, color: theme.colorScheme.primary),
+          ],
         ]),
-        for (final t in types)
+      );
+      return onTap == null ? text : InkWell(onTap: onTap, child: text);
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Table(
+        columnWidths: const {
+          0: FlexColumnWidth(1.2),
+          1: FlexColumnWidth(1.6),
+          2: FlexColumnWidth(0.9),
+        },
+        border: TableBorder(horizontalInside: BorderSide(color: theme.dividerColor)),
+        children: [
           TableRow(children: [
-            cell('${fmtAreaPy(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}', align: TextAlign.left),
-            cell(fmtPriceMan(t.priceMan)),
-            cell(t.total?.toString() ?? '-'),
+            cell('전용', style: head, align: TextAlign.left),
+            cell('최고 분양가', style: head),
+            cell('세대', style: head),
           ]),
-      ],
-    );
+          for (final t in types)
+            TableRow(children: [
+              cell('${fmtAreaPy(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}',
+                  align: TextAlign.left, onTap: () => _showPlan(context, t), plan: true),
+              cell(fmtPriceMan(t.priceMan), onTap: () => _showPlan(context, t)),
+              cell(t.total?.toString() ?? '-', onTap: () => _showPlan(context, t)),
+            ]),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Text('주택형을 누르면 평면도(참고)를 볼 수 있어요.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]);
   }
 }
 
@@ -561,6 +620,9 @@ class _MarketInfo extends StatelessWidget {
     final m = notice.mkt;
     final per = (m['per_m2'] as num);
     final avg84 = m['avg84'];
+    // '202609~202611' -> '2026.09~11월'
+    final ym = RegExp(r'^(\d{4})(\d{2})~(\d{4})(\d{2})$').firstMatch('${m['ym'] ?? ''}');
+    final period = ym == null ? '최근 3개월' : '${ym.group(1)}.${ym.group(2)}~${ym.group(4)}월';
     final rows = <(String, String)>[
       if (avg84 is num) ('전용 84㎡ 안팎 거래가', '약 ${_eok(avg84)}'),
       ('3.3㎡(1평)당', '약 ${_eok(per * 3.3058)}'),
@@ -579,9 +641,35 @@ class _MarketInfo extends StatelessWidget {
         ),
       const SizedBox(height: 4),
       Text(
-          '${notice.sido} 같은 시·군·구의 ${m['ym'] ?? '최근 3개월'} 아파트 매매 실거래 ${m['n'] ?? ''}건 기준(국토교통부)이에요. '
+          '${notice.sido} 같은 시·군·구의 $period 아파트 매매 실거래 ${m['n'] ?? ''}건 기준(국토교통부)이에요. '
           '단지 바로 옆 시세가 아니라 참고용이에요.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
+  }
+}
+
+
+/// 청약 신청은 앱이 아니라 각 기관 사이트에서 한다. 출처에 맞는 신청 사이트로 보낸다.
+class _ApplyButton extends StatelessWidget {
+  const _ApplyButton({required this.notice, required this.open});
+  final Notice notice;
+  final Future<void> Function(String url) open;
+
+  @override
+  Widget build(BuildContext context) {
+    final (name, url) = switch (notice.source) {
+      'APPLYHOME' => ('청약홈', 'https://www.applyhome.co.kr'),
+      'LH' => ('LH 청약플러스', 'https://apply.lh.or.kr'),
+      'SH' => ('SH 청약', 'https://www.i-sh.co.kr'),
+      'GH' => ('GH 청약', 'https://apply.gh.or.kr'),
+      _ => ('', ''),
+    };
+    if (url.isEmpty) return const SizedBox.shrink();
+    return OutlinedButton.icon(
+      onPressed: () => open(url),
+      icon: const Icon(Icons.how_to_reg_outlined),
+      label: Text('$name 신청 페이지로 이동'),
+      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+    );
   }
 }

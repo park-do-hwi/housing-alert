@@ -124,7 +124,9 @@ class _GroupedListState extends State<_GroupedList> {
     if (tab != null) {
       final items = groupNotices(widget.list.where((n) => tab!.matches(n, now)).toList(), now)
           .expand((g) => g.$2);
-      rows.addAll(items);
+      final list = items.toList();
+      rows.addAll(list);
+      if (list.isEmpty) rows.add(tab!); // 고른 묶음에 공고가 없으면 안내 문구를 보여 준다
     } else {
       for (final (phase, items) in groupNotices(widget.list, now)) {
         rows.add((phase, items.length));
@@ -143,6 +145,7 @@ class _GroupedListState extends State<_GroupedList> {
         if (r is Map<FeedTab, int>) {
           return FeedTabBar(counts: r, selected: tab, onSelect: (t) => setState(() => tab = t));
         }
+        if (r is FeedTab) return _EmptyTab(tab: r);
         final (phase, count) = r as (Phase, int);
         final closed = phase == Phase.closed;
         return PhaseHeader(
@@ -153,6 +156,38 @@ class _GroupedListState extends State<_GroupedList> {
           onToggle: closed ? () => setState(() => closedOpen = !closedOpen) : null,
         );
       },
+    );
+  }
+}
+
+/// 숫자 탭을 눌렀는데 그 묶음에 공고가 없을 때의 안내.
+class _EmptyTab extends StatelessWidget {
+  const _EmptyTab({required this.tab});
+  final FeedTab tab;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final msg = switch (tab) {
+      FeedTab.closingSoon => '마감이 임박한 공고가 없어요',
+      FeedTab.open => '지금 접수 중인 공고가 없어요',
+      FeedTab.upcoming => '접수 예정인 공고가 없어요',
+      FeedTab.rush => '접수할 수 있는 무순위 공고가 없어요',
+      FeedTab.closed => '마감된 공고가 없어요',
+    };
+    // 화면 한가운데쯤에 오도록 남은 높이를 대략 채운다.
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.5,
+      child: Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.inbox_outlined, size: 48, color: theme.colorScheme.outline),
+        const SizedBox(height: 12),
+        Text(msg, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text('위 숫자를 다시 누르면 전체 공고로 돌아가요.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ]),
+      ),
     );
   }
 }
