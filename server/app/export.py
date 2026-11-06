@@ -31,7 +31,7 @@ TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을
 REF_KEYS = ("op", "manage_no", "pblanc_no")
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
-PHOTO_PER_RUN = 40      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
+PHOTO_PER_RUN = 60      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
 MARKET_PER_RUN = 60     # 한 번 실행에서 시·군·구 코드를 새로 찾을 최대 공고 수
 PHOTO_RETRY_DAYS = 7    # 이미지를 못 찾았을 때 다시 보는 간격
@@ -246,7 +246,11 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> Non
     """분양 홈페이지 주소가 있고 아직 이미지가 없는 공고만, 한 번에 PHOTO_PER_RUN 건까지 조회한다.
     못 찾은 것은 pchk(확인한 날)를 남기고 PHOTO_RETRY_DAYS 일 뒤에 다시 본다(사진은 나중에 올라오기도 한다)."""
     budget = PHOTO_PER_RUN
-    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+
+    def stale_thumb(x):  # 작은 썸네일만 있는 것(상세에서 흐릿함)을 먼저 원본으로 바꾼다
+        return not ("kakaocdn.net" in (x.get("photo") or "") and not x.get("photo_hi"))
+
+    for it in sorted(merged.values(), key=lambda x: (stale_thumb(x), x.get("apply_end") or "9999")):
         if budget <= 0:
             break
         hp = (it.get("info") or {}).get("homepage")
