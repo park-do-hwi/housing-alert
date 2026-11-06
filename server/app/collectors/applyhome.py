@@ -107,6 +107,13 @@ def parse_rows(rows: list[dict], label: str, op: str) -> list[RawNotice]:
                 "op": op, "manage_no": manage_no, "pblanc_no": pblanc_no,
                 "apply_start": parse_date(_pick(r, "RCEPT_BGNDE", "SUBSCRPT_RCEPT_BGNDE", "GNRL_RCEPT_BGNDE")),
                 "winner_date": parse_date(_pick(r, "PRZWNER_PRESNATN_DE")),
+                # 단계별 접수: 특별공급 · 1순위(해당 지역) · 2순위(해당 지역)
+                "special_start": parse_date(_pick(r, "SPSPLY_RCEPT_BGNDE")),
+                "special_end": parse_date(_pick(r, "SPSPLY_RCEPT_ENDDE")),
+                "rank1_start": parse_date(_pick(r, "GNRL_RNK1_CRSPAREA_RCPTDE")),
+                "rank1_end": parse_date(_pick(r, "GNRL_RNK1_CRSPAREA_ENDDE")),
+                "rank2_start": parse_date(_pick(r, "GNRL_RNK2_CRSPAREA_RCPTDE")),
+                "rank2_end": parse_date(_pick(r, "GNRL_RNK2_CRSPAREA_ENDDE")),
                 "contract_start": parse_date(_pick(r, "CNTRCT_CNCLS_BGNDE")),
                 "address": _pick(r, "HSSPLY_ADRES"),
                 "total_households": _to_int(r.get("TOT_SUPLY_HSHLDCO")),

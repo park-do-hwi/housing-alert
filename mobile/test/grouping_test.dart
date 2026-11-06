@@ -19,6 +19,7 @@ Notice n(String id, {String? start, String? end, String? ann, Map<String, dynami
     );
 
 void main() {
+  tabAndStageTests();
   final now = DateTime(2026, 11, 5, 14, 0);
 
   test('단계 판정: 마감 임박·접수 중·예정·미확인·마감', () {
@@ -77,5 +78,38 @@ void main() {
     expect(find.text('D-2'), findsOneWidget);
     expect(find.textContaining('접수 11.5 ~ 11.7'), findsOneWidget);
     expect(find.textContaining('279세대'), findsOneWidget);
+  });
+}
+
+void tabAndStageTests() {
+  final now = DateTime(2026, 11, 5, 14, 0);
+
+  test('숫자 탭: 단계와 무순위 구분', () {
+    final rush = Notice(
+        id: 'r', source: 'APPLYHOME', title: 'r', tags: const ['무순위'], sido: '서울', url: '',
+        applyEnd: DateTime(2026, 11, 20), info: const {});
+    expect(FeedTab.rush.matches(rush, now), isTrue);
+    expect(FeedTab.open.matches(rush, now), isTrue);
+    expect(FeedTab.closed.matches(n('c', end: '2026-11-01'), now), isTrue);
+    expect(FeedTab.rush.matches(n('x', end: '2026-11-20'), now), isFalse);
+  });
+
+  test('단계별 접수: 있는 것만, 진행 상태 판정', () {
+    final a = n('s', end: '2026-11-17', info: {
+      'special_start': '2026-11-02', 'special_end': '2026-11-04', 'rank1_start': '2026-11-05',
+      'rank1_end': '2026-11-05', 'rank2_start': '2026-11-17', 'rank2_end': '2026-11-17',
+    });
+    final st = stagePeriods(a);
+    expect(st.map((e) => e.label), ['특별공급', '1순위', '2순위']);
+    expect(st.map((e) => e.stateAt(now)), [-1, 0, 1]);
+    expect(stagePeriods(n('none', end: '2026-11-17')), isEmpty);
+  });
+
+  test('NEW 는 처음 본 지 24시간 안', () {
+    Notice seen(String t) => Notice(
+        id: 'n', source: 'LH', title: 't', tags: const [], sido: '', url: '', firstSeen: DateTime.parse(t));
+    expect(seen('2026-11-05T01:00:00').isNew(now), isTrue);
+    expect(seen('2026-11-04T13:00:00').isNew(now), isFalse);
+    expect(n('x').isNew(now), isFalse);
   });
 }

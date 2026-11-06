@@ -100,16 +100,22 @@ class _GroupedList extends StatefulWidget {
 
 class _GroupedListState extends State<_GroupedList> {
   bool closedOpen = false; // 마감 단계는 기본 접힘
+  FeedTab? tab; // 숫자 탭 선택. null 이면 전체
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final groups = groupNotices(widget.list, now);
-    final counts = {for (final (p, items) in groups) p: items.length};
+    final counts = {for (final t in FeedTab.values) t: widget.list.where((n) => t.matches(n, now)).length};
     final rows = <Object>[counts];
-    for (final (phase, items) in groups) {
-      rows.add((phase, items.length));
-      if (phase != Phase.closed || closedOpen) rows.addAll(items);
+    if (tab != null) {
+      final items = groupNotices(widget.list.where((n) => tab!.matches(n, now)).toList(), now)
+          .expand((g) => g.$2);
+      rows.addAll(items);
+    } else {
+      for (final (phase, items) in groupNotices(widget.list, now)) {
+        rows.add((phase, items.length));
+        if (phase != Phase.closed || closedOpen) rows.addAll(items);
+      }
     }
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -123,7 +129,9 @@ class _GroupedListState extends State<_GroupedList> {
             const Divider(height: 1),
           ]);
         }
-        if (r is Map<Phase, int>) return TodaySummary(counts: r);
+        if (r is Map<FeedTab, int>) {
+          return FeedTabBar(counts: r, selected: tab, onSelect: (t) => setState(() => tab = t));
+        }
         final (phase, count) = r as (Phase, int);
         final closed = phase == Phase.closed;
         return PhaseHeader(

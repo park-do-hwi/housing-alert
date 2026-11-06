@@ -41,6 +41,7 @@ class Notice {
     required this.url,
     this.announceDate,
     this.applyEnd,
+    this.firstSeen,
     this.info = const {},
     this.types,
   });
@@ -53,6 +54,7 @@ class Notice {
   final String url;
   final DateTime? announceDate;
   final DateTime? applyEnd;
+  final DateTime? firstSeen; // 서버가 이 공고를 처음 본 시각
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
 
@@ -65,6 +67,7 @@ class Notice {
         url: (j['url'] ?? '') as String,
         announceDate: _date(j['announce_date']),
         applyEnd: _date(j['apply_end']),
+        firstSeen: _date(j['first_seen']),
         info: (j['info'] as Map?)?.cast<String, dynamic>() ?? const {},
         types: (j['types'] as List?)
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
@@ -72,6 +75,14 @@ class Notice {
       );
 
   bool get isResult => tags.contains('결과');
+
+  /// 서버가 처음 본 지 24시간 안이면 새 공고.
+  bool isNew([DateTime? now]) {
+    final f = firstSeen;
+    if (f == null) return false;
+    final age = (now ?? DateTime.now()).difference(f);
+    return !age.isNegative && age < const Duration(hours: 24);
+  }
 
   /// 접수 마감까지 남은 일수. 마감일이 없거나 지났으면 null.
   int? daysLeft([DateTime? now]) {

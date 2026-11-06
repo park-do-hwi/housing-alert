@@ -133,8 +133,9 @@ class NoticeTile extends StatelessWidget {
     final households = notice.infoInt('total_households');
     final types = notice.types;
     final price = (types == null || types.isEmpty) ? null : TypeSummary(types).priceRange;
+    final stages = stagePeriods(notice);
     final facts = <String>[
-      ?periodText(notice),
+      if (stages.isEmpty) ?periodText(notice),
       if (households != null) '$households세대',
       if (price != null && price != '-') price,
     ];
@@ -148,16 +149,35 @@ class NoticeTile extends StatelessWidget {
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (badge != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: Gap.xs),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(phaseIcon(phase), size: 14, color: tone.fg),
-                    const SizedBox(width: 4),
-                    Text(badge,
-                        style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
+              if (badge != null || notice.isNew(at))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.xs),
+                  child: Wrap(spacing: 6, runSpacing: 4, children: [
+                    if (badge != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration:
+                            BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(phaseIcon(phase), size: 14, color: tone.fg),
+                          const SizedBox(width: 4),
+                          Text(badge,
+                              style: TextStyle(
+                                  fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
+                        ]),
+                      ),
+                    if (notice.isNew(at))
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                        child: Text('NEW',
+                            style: TextStyle(
+                                fontSize: 12,
+                                height: 18 / 12,
+                                fontWeight: FontWeight.w800,
+                                color: theme.colorScheme.onPrimary)),
+                      ),
                   ]),
                 ),
               Text(notice.title,
@@ -176,6 +196,10 @@ class NoticeTile extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
                 ]),
               ],
+              if (stages.isNotEmpty) ...[
+                const SizedBox(height: Gap.sm),
+                for (final s in stages) _StageRow(stage: s, now: at),
+              ],
               const SizedBox(height: Gap.sm),
               Wrap(spacing: 6, runSpacing: 4, children: [
                 for (final t in notice.tags.where((t) => t != '정정' && t != '기타')) TagChip(t),
@@ -185,6 +209,46 @@ class NoticeTile extends StatelessWidget {
           ),
         ]),
       ),
+    );
+  }
+}
+
+/// 카드 안의 단계별 접수 한 줄: '특별공급 11.2 ~ 11.16'. 진행 중이면 강조, 지났으면 흐리게.
+class _StageRow extends StatelessWidget {
+  const _StageRow({required this.stage, required this.now});
+  final StagePeriod stage;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final st = stage.stateAt(now);
+    final same = stage.start == stage.end;
+    final range = same ? fmtMd(stage.start) : '${fmtMd(stage.start)} ~ ${fmtMd(stage.end)}';
+    final bg = st == 0 ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest;
+    final fg = st == 0
+        ? theme.colorScheme.onPrimaryContainer
+        : st < 0
+            ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
+            : theme.colorScheme.onSurfaceVariant;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(stage.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
+        const SizedBox(width: 8),
+        Text(range,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: fg,
+                decoration: st < 0 ? TextDecoration.lineThrough : null)),
+        if (st == 0) ...[
+          const SizedBox(width: 6),
+          Text('진행 중', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+        ],
+      ]),
     );
   }
 }
@@ -227,54 +291,55 @@ class PhaseHeader extends StatelessWidget {
   }
 }
 
-/// 목록 맨 위 "오늘 놓치면 안 되는 청약" 요약 띠. 오늘 마감·임박·접수 중 건수를 한눈에 보여준다.
-class TodaySummary extends StatelessWidget {
-  const TodaySummary({super.key, required this.counts});
-  final Map<Phase, int> counts;
+/// 목록 맨 위 숫자 탭: 마감 임박·접수 중·접수 예정·무순위·마감 건수. 누르면 그 묶음만 보고, 다시 누르면 전체로 돌아간다.
+class FeedTabBar extends StatelessWidget {
+  const FeedTabBar({super.key, required this.counts, required this.selected, required this.onSelect});
+  final Map<FeedTab, int> counts;
+  final FeedTab? selected;
+  final ValueChanged<FeedTab?> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
     final theme = Theme.of(context);
-    Widget chip(Phase p, String label) {
-      final n = counts[p] ?? 0;
-      final tone = colors.phaseTone(p);
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: Gap.md),
-          decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.chipRadius)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Icon(phaseIcon(p), size: 14, color: tone.fg),
-              const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 12, height: 18 / 12, color: tone.fg, fontWeight: FontWeight.w600)),
-            ]),
-            Text('$n건',
-                style: TextStyle(fontSize: 22, height: 30 / 22, color: tone.fg, fontWeight: FontWeight.w700)),
-          ]),
-        ),
-      );
-    }
-
     return Container(
       margin: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 0),
-      padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Gap.cardRadius),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('오늘 놓치면 안 되는 청약',
-            style: theme.textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: Gap.sm),
-        Row(children: [
-          chip(Phase.closingSoon, '마감 임박'),
-          const SizedBox(width: Gap.sm),
-          chip(Phase.open, '접수 중'),
-          const SizedBox(width: Gap.sm),
-          chip(Phase.upcoming, '접수 예정'),
-        ]),
+      child: Row(children: [
+        for (final t in FeedTab.values)
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(Gap.cardRadius),
+              onTap: () => onSelect(selected == t ? null : t),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Gap.cardRadius),
+                  color: selected == t ? theme.colorScheme.primaryContainer : null,
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${counts[t] ?? 0}',
+                      style: TextStyle(
+                          fontSize: 22,
+                          height: 30 / 22,
+                          fontWeight: FontWeight.w800,
+                          color: selected == t ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface)),
+                  Text(t.label,
+                      maxLines: 1,
+                      style: TextStyle(
+                          fontSize: 11,
+                          height: 16 / 11,
+                          fontWeight: FontWeight.w600,
+                          color: selected == t
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant)),
+                ]),
+              ),
+            ),
+          ),
       ]),
     );
   }

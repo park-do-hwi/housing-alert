@@ -306,3 +306,18 @@ def test_gh_parser_keeps_housing_rows_with_files():
         if any(n.endswith(".pdf") for n in names) and any(n.endswith(".hwp") for n in names):
             assert names.index(next(n for n in names if n.endswith(".pdf"))) < names.index(
                 next(n for n in names if n.endswith(".hwp")))
+
+
+def test_applyhome_stage_dates():
+    from app.collectors import applyhome
+    raw = applyhome.parse_rows([{
+        "HOUSE_MANAGE_NO": "M2", "PBLANC_NO": "P2", "HOUSE_NM": "단계 단지", "RCRIT_PBLANC_DE": "2026-11-03",
+        "RCEPT_BGNDE": "2026-11-02", "RCEPT_ENDDE": "2026-11-17",
+        "SPSPLY_RCEPT_BGNDE": "2026-11-02", "SPSPLY_RCEPT_ENDDE": "2026-11-16",
+        "GNRL_RNK1_CRSPAREA_RCPTDE": "2026-11-17", "GNRL_RNK1_CRSPAREA_ENDDE": "2026-11-17",
+        "GNRL_RNK2_CRSPAREA_RCPTDE": None, "GNRL_RNK2_CRSPAREA_ENDDE": None,
+    }], "APT 분양", "getAPTLttotPblancDetail")
+    ex = raw[0].extra
+    assert (ex["special_start"].isoformat(), ex["special_end"].isoformat()) == ("2026-11-02", "2026-11-16")
+    assert ex["rank1_start"].isoformat() == "2026-11-17"
+    assert ex["rank2_start"] is None

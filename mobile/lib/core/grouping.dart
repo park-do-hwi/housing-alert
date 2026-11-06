@@ -54,6 +54,56 @@ List<(Phase, List<Notice>)> groupNotices(List<Notice> list, DateTime now) {
   ];
 }
 
+/// 홈 위쪽 숫자 탭. 누르면 그 묶음만 보여준다.
+enum FeedTab {
+  closingSoon('마감 임박'),
+  open('접수 중'),
+  upcoming('접수 예정'),
+  rush('무순위'),
+  closed('마감');
+
+  const FeedTab(this.label);
+  final String label;
+
+  bool matches(Notice n, DateTime now) {
+    final p = phaseOf(n, now);
+    return switch (this) {
+      FeedTab.closingSoon => p == Phase.closingSoon,
+      FeedTab.open => p == Phase.open,
+      FeedTab.upcoming => p == Phase.upcoming,
+      FeedTab.rush => n.tags.contains('무순위') && p != Phase.closed,
+      FeedTab.closed => p == Phase.closed,
+    };
+  }
+}
+
+/// 단계별 접수 한 줄(특별공급·1순위·2순위).
+class StagePeriod {
+  const StagePeriod(this.label, this.start, this.end);
+  final String label;
+  final DateTime start;
+  final DateTime end;
+
+  /// -1 지남, 0 진행 중(오늘 포함), 1 아직
+  int stateAt(DateTime now) {
+    final t = _day(now);
+    if (_day(end).isBefore(t)) return -1;
+    if (_day(start).isAfter(t)) return 1;
+    return 0;
+  }
+}
+
+/// 수집된 단계별 접수일. 하나도 없으면 빈 목록(그땐 접수 기간 한 줄을 쓴다).
+List<StagePeriod> stagePeriods(Notice n) {
+  final out = <StagePeriod>[];
+  for (final (label, k) in const [('특별공급', 'special'), ('1순위', 'rank1'), ('2순위', 'rank2')]) {
+    final s = n.infoDate('${k}_start');
+    final e = n.infoDate('${k}_end') ?? s;
+    if (s != null && e != null) out.add(StagePeriod(label, s, e));
+  }
+  return out;
+}
+
 /// 카드 오른쪽 위 배지 문구: 'D-3', '오늘 마감', '5일 후 접수', '마감'. 알 수 없으면 null.
 String? badgeLabel(Notice n, DateTime now) {
   final today = _day(now);
