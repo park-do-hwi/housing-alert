@@ -315,7 +315,6 @@ void main() {
     ));
     await tester.pumpAndSettle();
     // 핵심 3칸: 공급 세대·분양가 범위가 맨 위에 보인다
-    expect(find.text('53세대'), findsOneWidget);
     expect(find.text('한눈에 보기'), findsOneWidget);
     expect(find.textContaining('총 53세대'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('13억 2,100만'), 200, scrollable: find.byType(Scrollable).first);

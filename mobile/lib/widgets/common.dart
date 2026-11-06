@@ -64,7 +64,7 @@ class ApartmentThumb extends StatelessWidget {
           const SizedBox(height: 4),
           Text(notice.sido,
               maxLines: 1,
-              style: TextStyle(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w800, color: tone.fg)),
+              style: TextStyle(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w700, color: tone.fg)),
         ],
       ]),
     );
@@ -189,7 +189,7 @@ class NoticeTile extends StatelessWidget {
                             const SizedBox(width: 3),
                             Text(badge,
                                 style: TextStyle(
-                                    fontSize: 11, height: 16 / 11, fontWeight: FontWeight.w800, color: tone.fg)),
+                                    fontSize: 11, height: 16 / 11, fontWeight: FontWeight.w700, color: tone.fg)),
                           ]),
                         ),
                       if (notice.isNew(at))
@@ -201,7 +201,7 @@ class NoticeTile extends StatelessWidget {
                               style: TextStyle(
                                   fontSize: 11,
                                   height: 16 / 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
                                   color: theme.colorScheme.onPrimary)),
                         ),
                     ]),
@@ -220,7 +220,7 @@ class NoticeTile extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium
-                            ?.copyWith(fontSize: 16, height: 22 / 16, fontWeight: FontWeight.w800)),
+                            ?.copyWith(fontSize: 16, height: 22 / 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Row(children: [
                       Icon(Icons.place_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
@@ -239,7 +239,7 @@ class NoticeTile extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 15,
                               height: 22 / 15,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: theme.colorScheme.primary)),
                     ],
                   ]),
@@ -280,7 +280,7 @@ class _StageTable extends StatelessWidget {
       final style = TextStyle(
           fontSize: 13,
           height: 20 / 13,
-          fontWeight: st == 0 ? FontWeight.w800 : FontWeight.w600,
+          fontWeight: st == 0 ? FontWeight.w700 : FontWeight.w600,
           color: color,
           decoration: st < 0 ? TextDecoration.lineThrough : null);
       return Padding(
@@ -293,7 +293,7 @@ class _StageTable extends StatelessWidget {
           SizedBox(width: 62, child: Text(name, style: style)),
           Expanded(child: Text(range, style: style)),
           Text(status,
-              style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: color)),
+              style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600, color: color)),
         ]),
       );
     }
@@ -311,7 +311,7 @@ class _StageTable extends StatelessWidget {
               child: Row(children: [
                 Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
-                Text(fallback!, style: const TextStyle(fontSize: 13, height: 20 / 13, fontWeight: FontWeight.w700)),
+                Text(fallback!, style: const TextStyle(fontSize: 13, height: 20 / 13, fontWeight: FontWeight.w600)),
               ]),
             )
           : Column(children: [
@@ -351,9 +351,9 @@ class PhaseHeader extends StatelessWidget {
         Icon(phaseIcon(phase), size: 20, color: tone.fg),
         const SizedBox(width: Gap.sm),
         Text(phase.label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w700)),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
         const SizedBox(width: 6),
-        Text('$count', style: TextStyle(color: tone.fg, fontWeight: FontWeight.w700, fontSize: 15)),
+        Text('$count', style: TextStyle(color: tone.fg, fontWeight: FontWeight.w600, fontSize: 15)),
         if (collapsible) ...[
           const Spacer(),
           Icon(collapsed ? Icons.expand_more : Icons.expand_less),
@@ -407,11 +407,11 @@ class FeedTabBar extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 11,
                             height: 16 / 11,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: theme.colorScheme.onSurfaceVariant)),
                     Text('${counts[t] ?? 0}',
                         style: TextStyle(
-                            fontSize: 22, height: 28 / 22, fontWeight: FontWeight.w800, color: toneOf[t]!.fg)),
+                            fontSize: 20, height: 26 / 20, fontWeight: FontWeight.w700, color: toneOf[t]!.fg)),
                   ]),
                 ),
               ),

@@ -49,28 +49,13 @@ class DetailScreen extends ConsumerWidget {
         ),
       ]),
       body: ListView(padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.section), children: [
-        Row(children: [
-          ApartmentThumb(notice: notice, size: 48),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              for (final tag in notice.tags.where((x) => x != '기타')) TagChip(tag),
-              if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(phaseIcon(phase), size: 14, color: tone.fg),
-                    const SizedBox(width: 4),
-                    Text(badge,
-                        style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
-                  ]),
-                ),
-            ]),
-          ),
+        _Hero(notice: notice, badge: badge, tone: tone, phase: phase, now: now),
+        const SizedBox(height: Gap.md),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          for (final tag in notice.tags.where((x) => x != '기타')) TagChip(tag),
         ]),
         const SizedBox(height: Gap.md),
-        Text(notice.title, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700, height: 32 / 24)),
+        Text(notice.title, style: t.headlineSmall?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 28 / 20)),
         const SizedBox(height: 4),
         Text('${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)} · 공고 ${fmtDate(notice.announceDate)}',
             style: t.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
@@ -120,14 +105,19 @@ class DetailScreen extends ConsumerWidget {
 
   Widget _sectionTitle(BuildContext context, String s) => Padding(
         padding: const EdgeInsets.only(top: Gap.section, bottom: Gap.sm),
-        child: Text(s, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w700)),
+        child: Text(s, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
       );
 
   /// 일정: 접수 시작·마감·당첨자 발표·계약 시작 중 실제 값이 있는 것만.
   List<Widget> _schedule(BuildContext context, DateTime now) {
+    final stages = stagePeriods(notice);
     final events = <TimelineEvent>[
-      if (notice.infoDate('apply_start') != null) TimelineEvent('접수 시작', notice.infoDate('apply_start')!),
-      if (notice.applyEnd != null) TimelineEvent('접수 마감', notice.applyEnd!),
+      if (stages.isNotEmpty)
+        for (final st in stages) TimelineEvent(st.label, st.start, end: st.end)
+      else ...[
+        if (notice.infoDate('apply_start') != null) TimelineEvent('접수 시작', notice.infoDate('apply_start')!),
+        if (notice.applyEnd != null) TimelineEvent('접수 마감', notice.applyEnd!),
+      ],
       if (notice.infoDate('winner_date') != null) TimelineEvent('당첨자 발표', notice.infoDate('winner_date')!),
       if (notice.infoDate('contract_start') != null) TimelineEvent('계약 시작', notice.infoDate('contract_start')!),
     ];
@@ -191,7 +181,7 @@ class DetailScreen extends ConsumerWidget {
       builder: (c) => AlertDialog(
         title: const Text('파일을 내려받을까요?'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text([_fileKind(name).split(' · ').first, if (bytes != null) fmtBytes(bytes)].join(' · ')),
           const SizedBox(height: 8),
@@ -214,6 +204,52 @@ class DetailScreen extends ConsumerWidget {
     if (n.endsWith('.pdf')) return 'PDF';
     if (n.endsWith('.hwp') || n.endsWith('.hwpx')) return '한글(HWP) · 한글 뷰어 앱이 필요할 수 있어요';
     return '첨부 파일';
+  }
+}
+
+/// 맨 위 큰 이미지 영역. 사진이 없으면 유형 색 타일(아이콘+시·도)이고, 상태 배지와 NEW 가 위에 얹힌다.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.notice, required this.badge, required this.tone, required this.phase, required this.now});
+  final Notice notice;
+  final String? badge;
+  final Tone tone;
+  final Phase phase;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (_, c) => Stack(children: [
+        ApartmentThumb(notice: notice, size: c.maxWidth, height: 168, showRegion: true),
+        Positioned(
+          left: 10,
+          top: 10,
+          child: Wrap(spacing: 6, runSpacing: 4, children: [
+            if (badge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(phaseIcon(phase), size: 14, color: tone.fg),
+                  const SizedBox(width: 4),
+                  Text(badge!,
+                      style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
+                ]),
+              ),
+            if (notice.isNew(now))
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                child: Text('NEW',
+                    style: TextStyle(
+                        fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: theme.colorScheme.onPrimary)),
+              ),
+          ]),
+        ),
+      ]),
+    );
   }
 }
 
@@ -279,7 +315,7 @@ class _Summary extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('한눈에 보기', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text('한눈에 보기', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: Gap.sm),
           for (final (icon, text) in lines())
             Padding(
@@ -353,7 +389,7 @@ class _Highlights extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 4),
-        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w700)),
+        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w600)),
       ]),
     );
   }

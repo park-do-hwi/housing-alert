@@ -6,18 +6,26 @@ import 'common.dart' show fmtMd;
 
 /// 일정 한 칸: 단계 이름과 날짜.
 class TimelineEvent {
-  const TimelineEvent(this.label, this.date);
+  const TimelineEvent(this.label, this.date, {this.end});
   final String label;
   final DateTime date;
+  final DateTime? end; // 기간이면 끝나는 날(같은 날이면 null 과 같음)
+
+  DateTime get last => end ?? date;
+  bool get isRange => end != null && end != date;
 }
 
 enum StepState { done, today, upcoming }
 
-StepState stepState(DateTime date, DateTime now) {
-  final d = DateTime(date.year, date.month, date.day);
-  final t = DateTime(now.year, now.month, now.day);
-  if (d.isBefore(t)) return StepState.done;
-  return d == t ? StepState.today : StepState.upcoming;
+/// 날짜(또는 기간)가 지났으면 done, 오늘이 그 안이면 today(진행 중), 아직이면 upcoming.
+StepState stepState(DateTime date, DateTime now, [DateTime? end]) {
+  DateTime day(DateTime x) => DateTime(x.year, x.month, x.day);
+  final d = day(date);
+  final e = day(end ?? date);
+  final t = day(now);
+  if (e.isBefore(t)) return StepState.done;
+  if (d.isAfter(t)) return StepState.upcoming;
+  return StepState.today;
 }
 
 const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -45,14 +53,14 @@ class ScheduleTimeline extends StatelessWidget {
               width: 28,
               child: Column(children: [
                 Container(width: 2, height: 6, color: i == 0 ? Colors.transparent : theme.colorScheme.outlineVariant),
-                _dot(stepState(sorted[i].date, at), colors, theme),
+                _dot(stepState(sorted[i].date, at, sorted[i].end), colors, theme),
                 Expanded(
                   child: Container(
                       width: 2, color: i == sorted.length - 1 ? Colors.transparent : theme.colorScheme.outlineVariant),
                 ),
               ]),
             ),
-            Expanded(child: _row(sorted[i], stepState(sorted[i].date, at), colors, theme)),
+            Expanded(child: _row(sorted[i], stepState(sorted[i].date, at, sorted[i].end), colors, theme)),
           ]),
         ),
     ]);
@@ -70,7 +78,7 @@ class ScheduleTimeline extends StatelessWidget {
   }
 
   Widget _row(TimelineEvent e, StepState s, AppColors colors, ThemeData theme) {
-    final state = switch (s) { StepState.done => '완료', StepState.today => '오늘', StepState.upcoming => '예정' };
+    final state = switch (s) { StepState.done => '완료', StepState.today => (e.isRange ? '진행 중' : '오늘'), StepState.upcoming => '예정' };
     final fg = s == StepState.today ? colors.phaseTone(Phase.open).fg : theme.colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -78,12 +86,12 @@ class ScheduleTimeline extends StatelessWidget {
         Expanded(
           child: Text(e.label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: s == StepState.upcoming || s == StepState.today ? FontWeight.w700 : FontWeight.w400)),
+                  fontWeight: s == StepState.upcoming || s == StepState.today ? FontWeight.w600 : FontWeight.w400)),
         ),
-        Text(fmtMdW(e.date), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(e.isRange ? '${fmtMdW(e.date)} ~ ${fmtMdW(e.last)}' : fmtMdW(e.date), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
         SizedBox(
-          width: 36,
+          width: 52,
           child: Text(state,
               textAlign: TextAlign.end,
               style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600, color: fg)),

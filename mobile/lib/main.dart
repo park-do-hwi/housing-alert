@@ -60,6 +60,14 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: ref.watch(themeModeProvider),
+      // 전체 글자를 살짝 줄인다. 기기의 글자 크기 설정은 그대로 곱해진다.
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: TextScaler.linear(mq.textScaler.scale(1) * 0.92)),
+          child: child!,
+        );
+      },
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: const [

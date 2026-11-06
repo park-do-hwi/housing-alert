@@ -92,9 +92,14 @@ ThemeData buildTheme(Brightness b) {
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
-          fontSize: 22, height: 30 / 22, fontWeight: FontWeight.w700, color: scheme.onSurface),
+          fontSize: 19, height: 26 / 19, fontWeight: FontWeight.w600, color: scheme.onSurface),
     ),
     navigationBarTheme: NavigationBarThemeData(
+      height: 60,
+      labelPadding: EdgeInsets.zero,
+      labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: 11, height: 14 / 11, fontWeight: FontWeight.w500, color: scheme.onSurface)),
+      iconTheme: WidgetStatePropertyAll(IconThemeData(size: 22, color: scheme.onSurface)),
       backgroundColor: scheme.surfaceContainerLow,
       indicatorColor: dark ? const Color(0xFF203A69) : const Color(0xFFDBEAFE),
     ),
