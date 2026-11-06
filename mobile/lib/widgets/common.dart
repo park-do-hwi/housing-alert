@@ -21,7 +21,7 @@ class TagChip extends StatelessWidget {
         color: tone.bg,
         borderRadius: BorderRadius.circular(Gap.tagRadius),
       ),
-      child: Text(tag, style: TextStyle(fontSize: 12, height: 18 / 12, color: tone.fg, fontWeight: FontWeight.w600)),
+      child: Text(tag, style: TextStyle(fontSize: 11, height: 16 / 11, color: tone.fg, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -59,7 +59,8 @@ class ApartmentThumb extends StatelessWidget {
         ),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(iconFor(notice.tags), size: (size < h ? size : h) * 0.42, color: tone.fg),
+        if (showRegion) const SizedBox(height: 40), // 위에 얹히는 배지와 겹치지 않게
+        Icon(iconFor(notice.tags), size: (size < h ? size : h) * 0.38, color: tone.fg),
         if (showRegion && notice.sido.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(notice.sido,
@@ -134,8 +135,8 @@ class NoticeTile extends StatelessWidget {
   final VoidCallback onTap;
   final DateTime? now; // 테스트용. 기본은 현재 시각
 
-  static const double imageW = 104;
-  static const double imageH = 132;
+  static const double imageW = 78;
+  static const double imageH = 96;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +145,7 @@ class NoticeTile extends StatelessWidget {
     final badge = badgeLabel(notice, at);
     final tone = context.appColors.phaseTone(phase);
     final theme = Theme.of(context);
-    final grey = TextStyle(fontSize: 13, height: 20 / 13, color: theme.colorScheme.onSurfaceVariant);
+    final grey = TextStyle(fontSize: 12, height: 18 / 12, color: theme.colorScheme.onSurfaceVariant);
 
     final households = notice.infoInt('total_households');
     final types = notice.types;
@@ -159,7 +160,7 @@ class NoticeTile extends StatelessWidget {
     final tags = notice.tags.where((t) => t != '기타').toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xs, Gap.lg, Gap.xs),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, 3, Gap.lg, 3),
       child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
@@ -170,7 +171,7 @@ class NoticeTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(Gap.md),
+            padding: const EdgeInsets.all(10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Stack(children: [
@@ -189,7 +190,7 @@ class NoticeTile extends StatelessWidget {
                             const SizedBox(width: 3),
                             Text(badge,
                                 style: TextStyle(
-                                    fontSize: 11, height: 16 / 11, fontWeight: FontWeight.w700, color: tone.fg)),
+                                    fontSize: 10, height: 14 / 10, fontWeight: FontWeight.w700, color: tone.fg)),
                           ]),
                         ),
                       if (notice.isNew(at))
@@ -207,7 +208,7 @@ class NoticeTile extends StatelessWidget {
                     ]),
                   ),
                 ]),
-                const SizedBox(width: Gap.md),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     if (tags.isNotEmpty)
@@ -215,37 +216,37 @@ class NoticeTile extends StatelessWidget {
                         for (final t in tags.where((t) => t != '정정')) TagChip(t),
                         if (tags.contains('정정')) const TagChip('정정'),
                       ]),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(notice.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium
-                            ?.copyWith(fontSize: 16, height: 22 / 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
+                            ?.copyWith(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
                     Row(children: [
-                      Icon(Icons.place_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(Icons.place_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: 3),
                       Expanded(child: Text(place, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
                     ]),
                     if (size.isNotEmpty)
                       Row(children: [
-                        Icon(Icons.apartment_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(Icons.apartment_outlined, size: 13, color: theme.colorScheme.onSurfaceVariant),
                         const SizedBox(width: 3),
                         Expanded(child: Text(size, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
                       ]),
                     if (price != null && price != '-') ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text('분양가 $price',
                           style: TextStyle(
-                              fontSize: 15,
-                              height: 22 / 15,
+                              fontSize: 14,
+                              height: 20 / 14,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.primary)),
                     ],
                   ]),
                 ),
               ]),
-              const SizedBox(height: Gap.sm),
+              const SizedBox(height: 6),
               _StageTable(stages: stages, fallback: periodText(notice), now: at),
             ]),
           ),
@@ -278,13 +279,13 @@ class _StageTable extends StatelessWidget {
               ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
               : theme.colorScheme.onSurface;
       final style = TextStyle(
-          fontSize: 13,
-          height: 20 / 13,
+          fontSize: 12,
+          height: 18 / 12,
           fontWeight: st == 0 ? FontWeight.w700 : FontWeight.w600,
           color: color,
           decoration: st < 0 ? TextDecoration.lineThrough : null);
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 1),
         child: Row(children: [
           SizedBox(
               width: 18,
@@ -300,18 +301,18 @@ class _StageTable extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(Gap.chipRadius),
       ),
       child: stages.isEmpty
           ? Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.symmetric(vertical: 1),
               child: Row(children: [
                 Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
-                Text(fallback!, style: const TextStyle(fontSize: 13, height: 20 / 13, fontWeight: FontWeight.w600)),
+                Text(fallback!, style: const TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600)),
               ]),
             )
           : Column(children: [
@@ -346,9 +347,9 @@ class PhaseHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.appColors.phaseTone(phase);
     final row = Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.section, Gap.lg, Gap.xs),
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, 2),
       child: Row(children: [
-        Icon(phaseIcon(phase), size: 20, color: tone.fg),
+        Icon(phaseIcon(phase), size: 18, color: tone.fg),
         const SizedBox(width: Gap.sm),
         Text(phase.label,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
