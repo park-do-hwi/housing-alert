@@ -289,3 +289,20 @@ def test_list_parsers_attach_file_refs():
     assert len(lh_items[0].extra["files_ref"]["p"]) == 5
     sh_items = sh.parse((FIX / "sh_list.html").read_text(encoding="utf-8", errors="ignore"))
     assert sh_items and sh_items[0].extra["files_ref"] == {"src": "SH", "seq": sh_items[0].ext_id}
+
+
+def test_gh_parser_keeps_housing_rows_with_files():
+    from app.collectors import gh
+    items = gh.parse((FIX / "gh_list.html").read_text(encoding="utf-8"))
+    assert items, "주택 공고가 한 건도 없음"
+    assert all(i.source == "GH" and i.region == "경기" and i.ext_id.isdigit() for i in items)
+    assert all(i.announce_date and i.announce_date.year >= 2026 for i in items)
+    assert all("articleNo=" in i.url for i in items)
+    with_files = [f for i in items for f in i.extra.get("files", [])]
+    assert with_files and all(f["url"].startswith("https://gh.or.kr/") and f["name"] for f in with_files)
+    # PDF 가 HWP 보다 앞
+    for i in items:
+        names = [f["name"].lower() for f in i.extra.get("files", [])]
+        if any(n.endswith(".pdf") for n in names) and any(n.endswith(".hwp") for n in names):
+            assert names.index(next(n for n in names if n.endswith(".pdf"))) < names.index(
+                next(n for n in names if n.endswith(".hwp")))
