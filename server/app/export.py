@@ -32,6 +32,7 @@ FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
 PHOTO_PER_RUN = 40      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
+MARKET_PER_RUN = 60     # 한 번 실행에서 시·군·구 코드를 새로 찾을 최대 공고 수
 PHOTO_RETRY_DAYS = 7    # 이미지를 못 찾았을 때 다시 보는 간격
 GEO_RETRY_DAYS = 7      # 위치를 못 찾았을 때 다시 시도하는 간격
 FILES_RETRY_DAYS = 3    # 파일이 아직 없을 때, 처음 본 뒤 이 기간 동안만 다시 확인
@@ -82,7 +83,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -123,7 +124,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plchk"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plchk", "sgg", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -165,6 +166,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         _fill_photo(merged, find_photo, today, search_photo)
     if search_plan:
         _fill_plan(merged, search_plan, today)
+    if market:
+        _fill_market(merged, market, today)
 
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
@@ -308,6 +311,41 @@ def _fill_plan(merged: dict, search_plan, today: date) -> None:
             it["plchk"] = today.isoformat()
 
 
+def _fill_market(merged: dict, market, today: date) -> None:
+    """위치가 잡힌 공고에 주변 시세(참고)를 붙인다. 시·군·구마다 하루에 한 번만 새로 받는다(공고들이 같이 쓴다).
+    market = (sgg_of(lat, lng) -> 코드, stats(sgg) -> dict|None)"""
+    sgg_of, stats = market
+    cache: dict[str, dict | None] = {}
+    budget = MARKET_PER_RUN
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        geo = it.get("geo")
+        if not geo:
+            continue
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
+            continue
+        old = it.get("mkt")
+        if old and old.get("at") == today.isoformat():
+            continue
+        try:
+            if not it.get("sgg"):
+                if budget <= 0:
+                    continue
+                budget -= 1
+                it["sgg"] = sgg_of(geo["lat"], geo["lng"])
+            sgg = it.get("sgg")
+            if not sgg:
+                continue
+            if sgg not in cache:
+                cache[sgg] = stats(sgg)
+            st = cache[sgg]
+        except Exception:
+            log.warning("market failed: %s", it["id"])
+            continue
+        if st:
+            it["mkt"] = {**st, "at": today.isoformat()}
+
+
 def write(out: Path, items: list[dict], meta: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     # 임시 파일에 쓴 뒤 교체해서, 쓰는 도중에 앱이 반쪽짜리 파일을 읽지 않게 한다
@@ -335,14 +373,18 @@ def main(argv=None):
     out = Path(args.out)
     from .collectors import files
 
-    from .collectors import geo, photo
+    from .collectors import geo, market as mk, photo
 
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
                         fetch_files=files.fetch_files,
                         geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
                         find_photo=photo.find_photo,
                         search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None,
-                        search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None)
+                        search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
+                        market=(mk.sgg_of, lambda sgg: mk.summarize(
+                            [t for ym in mk.months_back(date.today()) for t in mk.fetch_trades(sgg, ym)],
+                            date.today()))
+                        if os.environ.get("KAKAO_REST_KEY") and os.environ.get("DATA_GO_KR_KEY") else None)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)

@@ -65,6 +65,7 @@ class DetailScreen extends ConsumerWidget {
         const SizedBox(height: Gap.md),
         _Highlights(notice: notice),
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
+        if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
         ..._schedule(context, now),
         ..._types(context),
@@ -508,6 +509,48 @@ class _PlanImage extends StatelessWidget {
       ),
       const SizedBox(height: 4),
       Text('이미지 검색 결과예요. 다른 단지의 평면도일 수 있으니 정확한 구조는 원문 공고를 확인하세요.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]);
+  }
+}
+
+
+/// 주변 시세(참고): 같은 시·군·구의 최근 3개월 아파트 매매 실거래(국토교통부) 요약.
+class _MarketInfo extends StatelessWidget {
+  const _MarketInfo({required this.notice});
+  final Notice notice;
+
+  static String _eok(num manwon) {
+    final eok = manwon / 10000;
+    return eok >= 1 ? '${eok.toStringAsFixed(eok >= 10 ? 0 : 1)}억' : '${manwon.round()}만원';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final m = notice.mkt;
+    final per = (m['per_m2'] as num);
+    final avg84 = m['avg84'];
+    final rows = <(String, String)>[
+      if (avg84 is num) ('전용 84㎡ 안팎 거래가', '약 ${_eok(avg84)}'),
+      ('3.3㎡(1평)당', '약 ${_eok(per * 3.3058)}'),
+      ('㎡당', '약 ${per.round()}만원'),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('주변 시세 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 6),
+      for (final (k, v) in rows)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Expanded(child: Text(k, style: theme.textTheme.bodyMedium)),
+            Text(v, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      const SizedBox(height: 4),
+      Text(
+          '${notice.sido} 같은 시·군·구의 ${m['ym'] ?? '최근 3개월'} 아파트 매매 실거래 ${m['n'] ?? ''}건 기준(국토교통부)이에요. '
+          '단지 바로 옆 시세가 아니라 참고용이에요.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
   }

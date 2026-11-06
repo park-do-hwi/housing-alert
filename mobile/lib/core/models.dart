@@ -63,6 +63,7 @@ class Notice {
     this.photo,
     this.photoHi,
     this.plan,
+    this.mkt = const {},
     this.planHi,
   });
 
@@ -78,6 +79,7 @@ class Notice {
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
   final GeoPoint? geo; // 위치. 못 찾았으면 null
+  final Map<String, dynamic> mkt; // 주변 시세(참고): per_m2(만원/㎡), avg84(만원), n, ym
   final String? plan; // 평면도(참고) 검색 결과 이미지
   final String? planHi;
   final String? photoHi; // 같은 사진의 원본(고해상도) 주소. 상세 화면에서 먼저 시도한다.
@@ -98,6 +100,7 @@ class Notice {
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
             .toList(),
         geo: GeoPoint.tryParse(j['geo']),
+        mkt: (j['mkt'] as Map?)?.cast<String, dynamic>() ?? const {},
         plan: (j['plan'] is String && (j['plan'] as String).startsWith('https://')) ? j['plan'] as String : null,
         planHi: (j['plan_hi'] is String && (j['plan_hi'] as String).startsWith('https://')) ? j['plan_hi'] as String : null,
         photoHi: (j['photo_hi'] is String && (j['photo_hi'] as String).startsWith('https://')) ? j['photo_hi'] as String : null,

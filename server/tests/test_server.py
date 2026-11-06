@@ -383,3 +383,21 @@ def test_photo_pick_and_fill():
     assert seen == ["https://a.example", "https://b.example"]
     assert items["a"]["photo"] == "https://a.example/p.jpg"
     assert items["b"]["pchk"] == "2026-11-07" and "photo" not in items["b"]
+
+
+def test_market_summarize_and_fill():
+    from datetime import date
+    from app.collectors.market import summarize
+    from app.export import _fill_market
+
+    today = date(2026, 11, 7)
+    trades = [(84.9, 100000 + i * 1000) for i in range(5)] + [(59.9, 70000 + i * 500) for i in range(8)]
+    st = summarize(trades, today)
+    assert st["n"] == 13 and st["avg84"] == 102000 and st["n84"] == 5 and st["per_m2"] > 0
+    assert summarize(trades[:5], today) is None  # 표본 부족
+
+    items = {"a": {"id": "a", "geo": {"lat": 1, "lng": 2}, "apply_end": "2026-11-20"},
+             "b": {"id": "b", "apply_end": "2026-11-21"}}
+    calls = []
+    _fill_market(items, (lambda lat, lng: "11680", lambda sgg: calls.append(sgg) or {"n": 1, "per_m2": 3000}), today)
+    assert items["a"]["sgg"] == "11680" and items["a"]["mkt"]["at"] == "2026-11-07" and "mkt" not in items["b"]
