@@ -66,7 +66,7 @@ class DetailScreen extends ConsumerWidget {
         _Highlights(notice: notice),
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
-        if (notice.plan != null) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
+        if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),
@@ -477,10 +477,16 @@ class _TypesTable extends StatelessWidget {
 }
 
 
-/// 평면도(참고): 이미지 검색 결과라 다른 단지 것이 섞일 수 있다. 누르면 크게 본다.
-class _PlanImage extends StatelessWidget {
+/// 평면도(참고): 이미지 검색 결과라 다른 단지 것이 섞일 수 있다. 주택형(84A 등)을 골라 보고, 누르면 크게 본다.
+class _PlanImage extends StatefulWidget {
   const _PlanImage({required this.notice});
   final Notice notice;
+  @override
+  State<_PlanImage> createState() => _PlanImageState();
+}
+
+class _PlanImageState extends State<_PlanImage> {
+  int sel = 0;
 
   Widget _img(String url, {String? hi}) => Image.network(
         hi ?? url,
@@ -491,20 +497,45 @@ class _PlanImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final n = widget.notice;
+    final plans = n.plans.isNotEmpty ? n.plans : [PlanImage(label: '', img: n.plan!, hi: n.planHi)];
+    final cur = plans[sel.clamp(0, plans.length - 1)];
+    String py(String label) {
+      final m = RegExp(r'^(\d+)').firstMatch(label);
+      final a = m == null ? null : double.tryParse(m.group(1)!);
+      // 주택형 숫자는 전용면적(㎡). 평으로 바꿔 함께 보여 준다.
+      return a == null ? label : '$label · ${pyeong(a)}평';
+    }
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('평면도 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      if (plans.length > 1 || plans.first.label.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, children: [
+          for (var i = 0; i < plans.length; i++)
+            ChoiceChip(
+              label: Text(py(plans[i].label)),
+              selected: i == sel,
+              visualDensity: VisualDensity.compact,
+              onSelected: (_) => setState(() => sel = i),
+            ),
+        ]),
+      ],
       const SizedBox(height: 6),
       GestureDetector(
         onTap: () => showDialog(
           context: context,
           builder: (_) => Dialog(
             insetPadding: const EdgeInsets.all(12),
-            child: InteractiveViewer(child: _img(notice.plan!, hi: notice.planHi)),
+            child: InteractiveViewer(child: _img(cur.img, hi: cur.hi)),
           ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(Gap.chipRadius),
-          child: SizedBox(height: 200, width: double.infinity, child: ColoredBox(color: Colors.white, child: _img(notice.plan!, hi: notice.planHi))),
+          child: SizedBox(
+              height: 220,
+              width: double.infinity,
+              child: ColoredBox(color: Colors.white, child: _img(cur.img, hi: cur.hi))),
         ),
       ),
       const SizedBox(height: 4),
@@ -513,7 +544,6 @@ class _PlanImage extends StatelessWidget {
     ]);
   }
 }
-
 
 /// 주변 시세(참고): 같은 시·군·구의 최근 3개월 아파트 매매 실거래(국토교통부) 요약.
 class _MarketInfo extends StatelessWidget {

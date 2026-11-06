@@ -401,3 +401,21 @@ def test_market_summarize_and_fill():
     calls = []
     _fill_market(items, (lambda lat, lng: "11680", lambda sgg: calls.append(sgg) or {"n": 1, "per_m2": 3000}), today)
     assert items["a"]["sgg"] == "11680" and items["a"]["mkt"]["at"] == "2026-11-07" and "mkt" not in items["b"]
+
+
+def test_plan_per_type():
+    from datetime import date
+    from app.export import _fill_plan, _type_label
+
+    assert _type_label("084.9500A") == "84A" and _type_label("059.9900") == "59"
+    today = date(2026, 11, 7)
+    items = {"a": {"id": "a", "source": "APPLYHOME", "apply_end": "2026-11-20",
+                   "types": [{"type": "059.9900A", "exclusive_area": 59.99}, {"type": "084.9500B", "exclusive_area": 84.95}]}}
+    asked = []
+
+    def fake(it, label=""):
+        asked.append(label)
+        return (f"https://x/{label}.jpg", None)
+
+    _fill_plan(items, fake, today)
+    assert asked == ["84B", "59A"] and [p["t"] for p in items["a"]["plans"]] == ["84B", "59A"]

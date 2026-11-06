@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import logging
+import re
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -124,7 +125,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plchk", "sgg", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "plchk", "sgg", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -282,13 +283,22 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> Non
             it["pchk"] = today.isoformat()
 
 
+def _type_label(t: str) -> str:
+    """'084.9500A' -> '84A' (앞 0 제거, 소수점 이하 제거, 뒤의 문자 유지)"""
+    m = re.match(r"0*(\d+)(?:\.\d+)?\s*([A-Za-z가-힣]*)", t or "")
+    return f"{m.group(1)}{m.group(2)}" if m else (t or "")
+
+
 def _fill_plan(merged: dict, search_plan, today: date) -> None:
-    """평면도(참고) 이미지: 청약홈 분양 단지만, 한 번에 PLAN_PER_RUN 건. 못 찾으면 plchk 를 남기고 일주일 뒤 재시도."""
+    """평면도(참고) 이미지: 청약홈 분양 단지만, 한 번에 PLAN_PER_RUN 건. 주택형(84A 등)이 있으면 주택형별로
+    (면적이 큰 순 최대 4개), 없으면 단지 평면도 한 장. 못 찾으면 plchk 를 남기고 일주일 뒤 재시도."""
     budget = PLAN_PER_RUN
     for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
         if budget <= 0:
             break
-        if it.get("source") != "APPLYHOME" or it.get("plan"):
+        types = it.get("types") or []
+        done = ("plans" in it) if types else bool(it.get("plan"))
+        if it.get("source") != "APPLYHOME" or done:
             continue
         chk = it.get("plchk")
         if chk and (today - date.fromisoformat(chk)).days < PHOTO_RETRY_DAYS:
@@ -297,18 +307,34 @@ def _fill_plan(merged: dict, search_plan, today: date) -> None:
         if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
             continue
         budget -= 1
-        found = None
         try:
-            found = search_plan(it)
+            if types:
+                labels, seen, plans = [], set(), []
+                for t in sorted(types, key=lambda x: -(x.get("exclusive_area") or 0)):
+                    lb = _type_label(t.get("type", ""))
+                    if lb and lb not in labels:
+                        labels.append(lb)
+                for lb in labels[:4]:
+                    found = search_plan(it, lb)
+                    if found and found[0] not in seen:
+                        seen.add(found[0])
+                        plans.append({"t": lb, "img": found[0], **({"hi": found[1]} if found[1] else {})})
+                if plans:
+                    it["plans"] = plans
+                    it.pop("plchk", None)
+                else:
+                    it["plchk"] = today.isoformat()
+            else:
+                found = search_plan(it)
+                if found:
+                    it["plan"] = found[0]
+                    if found[1]:
+                        it["plan_hi"] = found[1]
+                    it.pop("plchk", None)
+                else:
+                    it["plchk"] = today.isoformat()
         except Exception:
             log.warning("plan search failed: %s", it["id"])
-        if found:
-            it["plan"] = found[0]
-            if found[1]:
-                it["plan_hi"] = found[1]
-            it.pop("plchk", None)
-        else:
-            it["plchk"] = today.isoformat()
 
 
 def _fill_market(merged: dict, market, today: date) -> None:

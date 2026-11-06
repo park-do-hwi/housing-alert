@@ -55,9 +55,9 @@ def find_photo(homepage: str) -> str | None:
     return str(h.url) if str(h.url).startswith("https") else img
 
 
-def search_plan(item: dict, key: str | None = None):
-    """평면도(참고): '단지명 평면도' 이미지 검색 결과."""
-    return search_photo(item, key, kind="평면도")
+def search_plan(item: dict, type_label: str = "", key: str | None = None):
+    """평면도(참고): '단지명 [84A] 평면도' 이미지 검색 결과."""
+    return search_photo(item, key, kind=f"{type_label} 평면도".strip())
 
 
 def search_photo(item: dict, key: str | None = None, kind: str = "조감도") -> tuple[str, str | None] | None:
