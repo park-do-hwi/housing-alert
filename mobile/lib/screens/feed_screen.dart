@@ -20,7 +20,17 @@ class FeedScreen extends ConsumerWidget {
 
     return Scaffold(
       floatingActionButton: const CompareFab(),
-      appBar: AppBar(title: const Text('분양·무순위 공고')),
+      appBar: AppBar(
+        toolbarHeight: 64,
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('분양 알리미'),
+          Text('오늘·이번 주에 해야 할 청약',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ]),
+      ),
       body: Column(children: [
         SizedBox(
           height: 48,
@@ -124,10 +134,7 @@ class _GroupedListState extends State<_GroupedList> {
       itemBuilder: (_, i) {
         final r = rows[i];
         if (r is Notice) {
-          return Column(mainAxisSize: MainAxisSize.min, children: [
-            NoticeTile(notice: r, now: now, onTap: () => context.push('/notice', extra: r)),
-            const Divider(height: 1),
-          ]);
+          return NoticeTile(notice: r, now: now, onTap: () => context.push('/notice', extra: r));
         }
         if (r is Map<FeedTab, int>) {
           return FeedTabBar(counts: r, selected: tab, onSelect: (t) => setState(() => tab = t));

@@ -26,11 +26,14 @@ class TagChip extends StatelessWidget {
   }
 }
 
-/// 아파트 이미지 자리. 공고 데이터에 사진이 없어서, 대표 유형 색과 아이콘으로 단지를 구분해 보여준다.
+/// 아파트 이미지 자리. 공고 데이터에 사진이 없어서, 유형 색·아이콘·지역명으로 단지를 구분해 보여준다.
+/// 나중에 사진이 생기면 같은 크기의 이미지로 바꿔 끼우면 된다.
 class ApartmentThumb extends StatelessWidget {
-  const ApartmentThumb({super.key, required this.notice, this.size = 64});
+  const ApartmentThumb({super.key, required this.notice, this.size = 64, this.height, this.showRegion = false});
   final Notice notice;
-  final double size;
+  final double size; // 가로(높이를 따로 주지 않으면 정사각형)
+  final double? height;
+  final bool showRegion; // 아이콘 아래에 시·도 이름
 
   static IconData iconFor(List<String> tags) {
     if (tags.contains('무순위')) return Icons.bolt_rounded;
@@ -43,9 +46,10 @@ class ApartmentThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final main = ['무순위', '장기전세', '분양', '임대'].firstWhere(notice.tags.contains, orElse: () => '');
     final tone = context.appColors.tagTone(main);
+    final h = height ?? size;
     return Container(
       width: size,
-      height: size,
+      height: h,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Gap.chipRadius),
         gradient: LinearGradient(
@@ -54,7 +58,15 @@ class ApartmentThumb extends StatelessWidget {
           colors: [tone.bg, tone.fg.withValues(alpha: 0.22)],
         ),
       ),
-      child: Icon(iconFor(notice.tags), size: size * 0.5, color: tone.fg),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(iconFor(notice.tags), size: (size < h ? size : h) * 0.42, color: tone.fg),
+        if (showRegion && notice.sido.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(notice.sido,
+              maxLines: 1,
+              style: TextStyle(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w800, color: tone.fg)),
+        ],
+      ]),
     );
   }
 }
@@ -114,12 +126,16 @@ IconData phaseIcon(Phase p) => switch (p) {
       Phase.closed => Icons.check_circle_outline_rounded,
     };
 
-/// 목록 한 건: 왼쪽 단지 이미지, 제목 + 상태 배지, 지역·출처, 핵심 수치(접수 기간·세대수·분양가), 태그.
+/// 목록 한 건(카드): 왼쪽 큰 단지 이미지(상태·NEW 배지가 위에 얹힘), 오른쪽에 유형 칩·제목·위치·세대/면적·가격,
+/// 아래에 단계별 접수 표(특별공급·1순위·2순위, 없으면 접수 기간 한 줄).
 class NoticeTile extends StatelessWidget {
   const NoticeTile({super.key, required this.notice, required this.onTap, this.now});
   final Notice notice;
   final VoidCallback onTap;
   final DateTime? now; // 테스트용. 기본은 현재 시각
+
+  static const double imageW = 104;
+  static const double imageH = 132;
 
   @override
   Widget build(BuildContext context) {
@@ -128,127 +144,184 @@ class NoticeTile extends StatelessWidget {
     final badge = badgeLabel(notice, at);
     final tone = context.appColors.phaseTone(phase);
     final theme = Theme.of(context);
-    final grey = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final grey = TextStyle(fontSize: 13, height: 20 / 13, color: theme.colorScheme.onSurfaceVariant);
 
     final households = notice.infoInt('total_households');
     final types = notice.types;
-    final price = (types == null || types.isEmpty) ? null : TypeSummary(types).priceRange;
-    final stages = stagePeriods(notice);
-    final facts = <String>[
-      if (stages.isEmpty) ?periodText(notice),
+    final summary = (types == null || types.isEmpty) ? null : TypeSummary(types);
+    final size = [
       if (households != null) '$households세대',
-      if (price != null && price != '-') price,
-    ];
+      if (summary != null && summary.minArea != null) summary.areaRange,
+    ].join(' · ');
+    final price = summary == null || summary.minPrice == null ? null : summary.priceRangeShort;
+    final stages = stagePeriods(notice);
+    final place = '${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)}';
+    final tags = notice.tags.where((t) => t != '기타').toList();
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.md),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ApartmentThumb(notice: notice),
-          const SizedBox(width: Gap.md),
-          Expanded(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xs, Gap.lg, Gap.xs),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Gap.cardRadius),
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.md),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (badge != null || notice.isNew(at))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: Gap.xs),
-                  child: Wrap(spacing: 6, runSpacing: 4, children: [
-                    if (badge != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration:
-                            BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(phaseIcon(phase), size: 14, color: tone.fg),
-                          const SizedBox(width: 4),
-                          Text(badge,
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Stack(children: [
+                  ApartmentThumb(notice: notice, size: imageW, height: imageH, showRegion: true),
+                  Positioned(
+                    left: 6,
+                    top: 6,
+                    right: 6,
+                    child: Wrap(spacing: 4, runSpacing: 4, children: [
+                      if (badge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(phaseIcon(phase), size: 12, color: tone.fg),
+                            const SizedBox(width: 3),
+                            Text(badge,
+                                style: TextStyle(
+                                    fontSize: 11, height: 16 / 11, fontWeight: FontWeight.w800, color: tone.fg)),
+                          ]),
+                        ),
+                      if (notice.isNew(at))
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
+                          child: Text('NEW',
                               style: TextStyle(
-                                  fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
-                        ]),
-                      ),
-                    if (notice.isNew(at))
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
-                        child: Text('NEW',
-                            style: TextStyle(
-                                fontSize: 12,
-                                height: 18 / 12,
-                                fontWeight: FontWeight.w800,
-                                color: theme.colorScheme.onPrimary)),
-                      ),
+                                  fontSize: 11,
+                                  height: 16 / 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.onPrimary)),
+                        ),
+                    ]),
+                  ),
+                ]),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (tags.isNotEmpty)
+                      Wrap(spacing: 4, runSpacing: 4, children: [
+                        for (final t in tags.where((t) => t != '정정')) TagChip(t),
+                        if (tags.contains('정정')) const TagChip('정정'),
+                      ]),
+                    const SizedBox(height: 4),
+                    Text(notice.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontSize: 16, height: 22 / 16, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.place_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 3),
+                      Expanded(child: Text(place, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
+                    ]),
+                    if (size.isNotEmpty)
+                      Row(children: [
+                        Icon(Icons.apartment_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 3),
+                        Expanded(child: Text(size, maxLines: 1, overflow: TextOverflow.ellipsis, style: grey)),
+                      ]),
+                    if (price != null && price != '-') ...[
+                      const SizedBox(height: 4),
+                      Text('분양가 $price',
+                          style: TextStyle(
+                              fontSize: 15,
+                              height: 22 / 15,
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.primary)),
+                    ],
                   ]),
                 ),
-              Text(notice.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text('${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)}',
-                  style: grey),
-              if (facts.isNotEmpty) ...[
-                const SizedBox(height: Gap.sm),
-                Wrap(spacing: 12, runSpacing: 2, children: [
-                  for (final f in facts)
-                    Text(f,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
-                ]),
-              ],
-              if (stages.isNotEmpty) ...[
-                const SizedBox(height: Gap.sm),
-                for (final s in stages) _StageRow(stage: s, now: at),
-              ],
-              const SizedBox(height: Gap.sm),
-              Wrap(spacing: 6, runSpacing: 4, children: [
-                for (final t in notice.tags.where((t) => t != '정정' && t != '기타')) TagChip(t),
-                if (notice.tags.contains('정정')) const TagChip('정정'),
               ]),
+              const SizedBox(height: Gap.sm),
+              _StageTable(stages: stages, fallback: periodText(notice), now: at),
             ]),
           ),
-        ]),
+        ),
       ),
     );
   }
 }
 
-/// 카드 안의 단계별 접수 한 줄: '특별공급 11.2 ~ 11.16'. 진행 중이면 강조, 지났으면 흐리게.
-class _StageRow extends StatelessWidget {
-  const _StageRow({required this.stage, required this.now});
-  final StagePeriod stage;
+/// 카드 아래 접수 표. 단계가 있으면 줄마다 [이름 · 기간 · 상태], 없으면 접수 기간 한 줄.
+class _StageTable extends StatelessWidget {
+  const _StageTable({required this.stages, required this.fallback, required this.now});
+  final List<StagePeriod> stages;
+  final String? fallback;
   final DateTime now;
+
+  static String _range(DateTime s, DateTime e) {
+    String f(DateTime d) => '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+    return s == e ? f(s) : '${f(s)}~${f(e)}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (stages.isEmpty && fallback == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
-    final st = stage.stateAt(now);
-    final same = stage.start == stage.end;
-    final range = same ? fmtMd(stage.start) : '${fmtMd(stage.start)} ~ ${fmtMd(stage.end)}';
-    final bg = st == 0 ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest;
-    final fg = st == 0
-        ? theme.colorScheme.onPrimaryContainer
-        : st < 0
-            ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
-            : theme.colorScheme.onSurfaceVariant;
+    Widget row(String name, String range, String status, int st) {
+      final color = st == 0
+          ? theme.colorScheme.primary
+          : st < 0
+              ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
+              : theme.colorScheme.onSurface;
+      final style = TextStyle(
+          fontSize: 13,
+          height: 20 / 13,
+          fontWeight: st == 0 ? FontWeight.w800 : FontWeight.w600,
+          color: color,
+          decoration: st < 0 ? TextDecoration.lineThrough : null);
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          SizedBox(
+              width: 18,
+              child: Icon(st == 0 ? Icons.play_arrow_rounded : st < 0 ? Icons.check : Icons.circle_outlined,
+                  size: st > 0 ? 10 : 16, color: color)),
+          SizedBox(width: 62, child: Text(name, style: style)),
+          Expanded(child: Text(range, style: style)),
+          Text(status,
+              style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: color)),
+        ]),
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(Gap.tagRadius)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(stage.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
-        const SizedBox(width: 8),
-        Text(range,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: fg,
-                decoration: st < 0 ? TextDecoration.lineThrough : null)),
-        if (st == 0) ...[
-          const SizedBox(width: 6),
-          Text('진행 중', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
-        ],
-      ]),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(Gap.chipRadius),
+      ),
+      child: stages.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(children: [
+                Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text(fallback!, style: const TextStyle(fontSize: 13, height: 20 / 13, fontWeight: FontWeight.w700)),
+              ]),
+            )
+          : Column(children: [
+              for (final s in stages)
+                row(s.label, _range(s.start, s.end), switch (s.stateAt(now)) {
+                  -1 => '종료',
+                  0 => '접수 중',
+                  _ => '접수 예정',
+                }, s.stateAt(now)),
+            ]),
     );
   }
 }
@@ -301,45 +374,50 @@ class FeedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Gap.cardRadius),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+    final colors = context.appColors;
+    final toneOf = {
+      FeedTab.closingSoon: colors.phaseTone(Phase.closingSoon),
+      FeedTab.open: colors.phaseTone(Phase.open),
+      FeedTab.upcoming: colors.phaseTone(Phase.upcoming),
+      FeedTab.rush: colors.tagTone('무순위'),
+      FeedTab.closed: colors.phaseTone(Phase.closed),
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 0),
       child: Row(children: [
-        for (final t in FeedTab.values)
+        for (final t in FeedTab.values) ...[
+          if (t != FeedTab.values.first) const SizedBox(width: 6),
           Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(Gap.cardRadius),
-              onTap: () => onSelect(selected == t ? null : t),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(Gap.cardRadius),
-                  color: selected == t ? theme.colorScheme.primaryContainer : null,
+            child: Material(
+              color: selected == t ? toneOf[t]!.bg : theme.colorScheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Gap.chipRadius),
+                side: BorderSide(
+                    color: selected == t ? toneOf[t]!.fg : theme.colorScheme.outlineVariant,
+                    width: selected == t ? 1.5 : 1),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(Gap.chipRadius),
+                onTap: () => onSelect(selected == t ? null : t),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(t.label,
+                        maxLines: 1,
+                        style: TextStyle(
+                            fontSize: 11,
+                            height: 16 / 11,
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text('${counts[t] ?? 0}',
+                        style: TextStyle(
+                            fontSize: 22, height: 28 / 22, fontWeight: FontWeight.w800, color: toneOf[t]!.fg)),
+                  ]),
                 ),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('${counts[t] ?? 0}',
-                      style: TextStyle(
-                          fontSize: 22,
-                          height: 30 / 22,
-                          fontWeight: FontWeight.w800,
-                          color: selected == t ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface)),
-                  Text(t.label,
-                      maxLines: 1,
-                      style: TextStyle(
-                          fontSize: 11,
-                          height: 16 / 11,
-                          fontWeight: FontWeight.w600,
-                          color: selected == t
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant)),
-                ]),
               ),
             ),
           ),
+        ],
       ]),
     );
   }
