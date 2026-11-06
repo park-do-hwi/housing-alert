@@ -22,13 +22,25 @@ class FeedScreen extends ConsumerWidget {
       floatingActionButton: const CompareFab(),
       appBar: AppBar(
         toolbarHeight: 64,
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('분양 알리미'),
-          Text('오늘·이번 주에 해야 할 청약',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        title: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.home_work_rounded, size: 22, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('분양 알리미'),
+            Text('오늘·이번 주에 해야 할 청약',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
         ]),
       ),
       body: Column(children: [

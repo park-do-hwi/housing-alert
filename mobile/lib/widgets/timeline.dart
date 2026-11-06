@@ -86,15 +86,15 @@ class ScheduleTimeline extends StatelessWidget {
         Expanded(
           child: Text(e.label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: s == StepState.upcoming || s == StepState.today ? FontWeight.w600 : FontWeight.w400)),
+                  fontWeight: s == StepState.upcoming || s == StepState.today ? FontWeight.w500 : FontWeight.w400)),
         ),
-        Text(e.isRange ? '${fmtMdW(e.date)} ~ ${fmtMdW(e.last)}' : fmtMdW(e.date), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(e.isRange ? '${fmtMdW(e.date)} ~ ${fmtMdW(e.last)}' : fmtMdW(e.date), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
         const SizedBox(width: 8),
         SizedBox(
           width: 52,
           child: Text(state,
               textAlign: TextAlign.end,
-              style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600, color: fg)),
+              style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w500, color: fg)),
         ),
       ]),
     );

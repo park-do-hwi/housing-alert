@@ -55,7 +55,7 @@ class DetailScreen extends ConsumerWidget {
           for (final tag in notice.tags.where((x) => x != '기타')) TagChip(tag),
         ]),
         const SizedBox(height: Gap.md),
-        Text(notice.title, style: t.headlineSmall?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 28 / 20)),
+        Text(notice.title, style: t.headlineSmall?.copyWith(fontSize: 20, fontWeight: FontWeight.w500, height: 28 / 20)),
         const SizedBox(height: 4),
         Text('${notice.sido.isEmpty ? '' : '${notice.sido} · '}${sourceLabel(notice.source)} · 공고 ${fmtDate(notice.announceDate)}',
             style: t.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
@@ -105,7 +105,7 @@ class DetailScreen extends ConsumerWidget {
 
   Widget _sectionTitle(BuildContext context, String s) => Padding(
         padding: const EdgeInsets.only(top: Gap.section, bottom: Gap.sm),
-        child: Text(s, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
+        child: Text(s, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w500)),
       );
 
   /// 일정: 접수 시작·마감·당첨자 발표·계약 시작 중 실제 값이 있는 것만.
@@ -181,7 +181,7 @@ class DetailScreen extends ConsumerWidget {
       builder: (c) => AlertDialog(
         title: const Text('파일을 내려받을까요?'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
           Text([_fileKind(name).split(' · ').first, if (bytes != null) fmtBytes(bytes)].join(' · ')),
           const SizedBox(height: 8),
@@ -234,7 +234,7 @@ class _Hero extends StatelessWidget {
                   Icon(phaseIcon(phase), size: 14, color: tone.fg),
                   const SizedBox(width: 4),
                   Text(badge!,
-                      style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: tone.fg)),
+                      style: TextStyle(fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600, color: tone.fg)),
                 ]),
               ),
             if (notice.isNew(now))
@@ -244,7 +244,7 @@ class _Hero extends StatelessWidget {
                     color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(Gap.tagRadius)),
                 child: Text('NEW',
                     style: TextStyle(
-                        fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w700, color: theme.colorScheme.onPrimary)),
+                        fontSize: 12, height: 18 / 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onPrimary)),
               ),
           ]),
         ),
@@ -315,7 +315,7 @@ class _Summary extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('한눈에 보기', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Text('한눈에 보기', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
           const SizedBox(height: Gap.sm),
           for (final (icon, text) in lines())
             Padding(
@@ -389,7 +389,7 @@ class _Highlights extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 4),
-        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w600)),
+        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w500)),
       ]),
     );
   }

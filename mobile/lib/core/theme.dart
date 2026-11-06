@@ -92,7 +92,7 @@ ThemeData buildTheme(Brightness b) {
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
-          fontSize: 19, height: 26 / 19, fontWeight: FontWeight.w600, color: scheme.onSurface),
+          fontSize: 19, height: 26 / 19, fontWeight: FontWeight.w500, color: scheme.onSurface),
     ),
     navigationBarTheme: NavigationBarThemeData(
       height: 60,
