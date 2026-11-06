@@ -56,8 +56,9 @@ def find_photo(homepage: str) -> str | None:
 
 
 def is_map_like(url: str) -> bool:
-    """지도·도면 같은 그림인지(조감도 사진이 아닌지). 색이 아주 선명한 픽셀이 많으면 지도로 본다.
-    (실제 단지 사진은 선명한 픽셀이 10% 안쪽, 지구 위치 지도는 20% 넘게 나왔다.)"""
+    """지도·도면·로고 같은 그림인지(조감도 사진이 아닌지).
+    색이 아주 선명한 픽셀이 15%를 넘거나(지도), 흰 바탕이 40%를 넘으면(도면·배치도·로고) 사진이 아니라고 본다.
+    (실제 단지 사진은 선명한 픽셀 10% 이하, 흰 바탕 25% 이하였다.)"""
     import io
 
     from PIL import Image
@@ -65,8 +66,10 @@ def is_map_like(url: str) -> bool:
     r = requests.get(url, headers=UA, timeout=10)
     r.raise_for_status()
     im = Image.open(io.BytesIO(r.content)).convert("HSV").resize((64, 64))
-    vivid = sum(1 for _, s, v in im.getdata() if s > 140 and v > 150) / 4096
-    return vivid > 0.15
+    px = list(im.getdata())
+    vivid = sum(1 for _, s, v in px if s > 140 and v > 150) / 4096
+    white = sum(1 for _, s, v in px if s < 30 and v > 225) / 4096  # 흰 바탕의 도면·지도·로고
+    return vivid > 0.15 or white > 0.40
 
 
 def search_plan(item: dict, type_label: str = "", key: str | None = None):

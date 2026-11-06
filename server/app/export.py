@@ -249,7 +249,7 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
     if validate:  # 예전에 저장한 검색 결과 중 지도 같은 그림은 빼고 다시 찾게 한다(검사한 것은 pv=1)
         for it in merged.values():
             u = it.get("photo") or ""
-            if "kakaocdn.net" in u and not it.get("pv"):
+            if u and not it.get("pv"):
                 try:
                     if validate(u):
                         for k in ("photo", "photo_hi", "pchk"):
@@ -281,6 +281,8 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
         url = None
         try:
             url = find_photo(hp) if hp else None
+            if url and validate and validate(url):
+                url = None  # 홈페이지 대표 이미지가 로고·지도·도면이면 쓰지 않는다
         except Exception:
             log.warning("photo fetch failed: %s", it["id"])
         if not url and use_search:
@@ -294,7 +296,7 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
                 log.warning("photo search failed: %s", it["id"])
         if url:
             it["photo"] = url
-            if search_photo is not None and "kakaocdn.net" in url:
+            if validate is not None or (search_photo is not None and "kakaocdn.net" in url):
                 it["pv"] = 1
             it.pop("pchk", None)
         else:
