@@ -17,6 +17,10 @@ class PlaceMap extends StatelessWidget {
   Future<void> _openExternal() async {
     final g = notice.geo!;
     final name = Uri.encodeComponent(notice.title.length > 30 ? notice.title.substring(0, 30) : notice.title);
+    // 카카오맵 앱이 있으면 그 좌표를 바로 보여 주고(내 위치가 아니라), 없으면 웹 지도로 연다.
+    try {
+      if (await launchUrl(Uri.parse('kakaomap://look?p=${g.lat},${g.lng}'), mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
     await launchUrl(Uri.parse('https://map.kakao.com/link/map/$name,${g.lat},${g.lng}'),
         mode: LaunchMode.externalApplication);
   }
