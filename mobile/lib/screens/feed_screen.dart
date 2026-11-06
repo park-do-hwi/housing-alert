@@ -34,7 +34,7 @@ class FeedScreen extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('분양 알리미'),
+            const Text('청약레이더'),
             Text('오늘·이번 주에 해야 할 청약',
                 style: Theme.of(context)
                     .textTheme

@@ -56,7 +56,7 @@ class _HousingAppState extends ConsumerState<HousingApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: '분양 알리미',
+      title: '청약레이더',
       routerConfig: router,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
