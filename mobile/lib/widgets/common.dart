@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
@@ -8,6 +7,7 @@ import '../core/grouping.dart';
 import '../core/models.dart';
 import '../core/providers.dart';
 import '../core/theme.dart';
+import 'complex_art.dart';
 
 class TagChip extends StatelessWidget {
   const TagChip(this.tag, {super.key});
@@ -36,14 +36,6 @@ class ApartmentThumb extends StatelessWidget {
   final double? height;
   final bool showRegion; // 아이콘 아래에 시·도 이름
 
-  /// 유형별 일러스트 파일 이름.
-  static String assetFor(List<String> tags) {
-    if (tags.contains('무순위')) return 'apt_lottery';
-    if (tags.contains('장기전세')) return 'apt_jeonse';
-    if (tags.contains('임대')) return 'apt_rental';
-    return 'apt_sale';
-  }
-
   static IconData iconFor(List<String> tags) {
     if (tags.contains('무순위')) return Icons.bolt_rounded;
     if (tags.contains('장기전세')) return Icons.home_work_rounded;
@@ -69,8 +61,8 @@ class ApartmentThumb extends StatelessWidget {
         ),
       ),
       child: Stack(alignment: Alignment.center, children: [
-        // 단지 일러스트. 넓은 히어로에서는 정사각형으로 가운데에 둔다.
-        SvgPicture.asset('assets/apt/${assetFor(notice.tags)}.svg', width: h < size ? h : size, height: h < size ? h : size, fit: BoxFit.cover),
+        // 공고마다 다르게 그려지는 단지 일러스트.
+        Positioned.fill(child: ComplexArt(id: notice.id, tags: notice.tags)),
         if (showRegion && notice.sido.isNotEmpty)
           Positioned(
             left: 0,
