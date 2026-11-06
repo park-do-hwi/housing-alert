@@ -63,6 +63,15 @@ class ApartmentThumb extends StatelessWidget {
       child: Stack(alignment: Alignment.center, children: [
         // 공고마다 다르게 그려지는 단지 일러스트.
         Positioned.fill(child: ComplexArt(id: notice.id, tags: notice.tags)),
+        // 실제 사진이 없으면 일반적인 단지 예시 사진(4장 중 공고마다 하나)을 보여준다.
+        if (notice.photo == null)
+          Positioned.fill(
+            child: Image.asset(
+              'assets/examples/ex${ComplexArt.seedOf(notice.id) % 4 + 1}.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
         // 분양 홈페이지의 대표 이미지가 있으면 위에 덮는다. 불러오는 동안·실패하면 아래 일러스트가 보인다.
         if (notice.photo != null)
           Positioned.fill(
@@ -75,6 +84,16 @@ class ApartmentThumb extends StatelessWidget {
                   AnimatedOpacity(opacity: frame == null && !sync ? 0 : 1, duration: const Duration(milliseconds: 200), child: child),
             ),
           ),
+        if (notice.photo == null && size >= 50)
+          Positioned(
+            top: 3,
+            left: 3,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+              child: const Text('예시', style: TextStyle(fontSize: 9, height: 1.4, color: Colors.white)),
+            ),
+          ),
         if (showRegion && notice.sido.isNotEmpty)
           Positioned(
             left: 0,
@@ -83,7 +102,7 @@ class ApartmentThumb extends StatelessWidget {
             child: Container(
               height: h * 14 / 72 > 22 ? 22 : h * 14 / 72,
               alignment: Alignment.center,
-              color: notice.photo != null ? Colors.black54 : null,
+              color: Colors.black54,
               child: Text(notice.sido,
                   maxLines: 1,
                   style: TextStyle(fontSize: size < 70 ? 10 : 12, height: 1.1, fontWeight: FontWeight.w500, color: Colors.white)),
