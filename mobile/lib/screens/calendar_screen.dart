@@ -7,6 +7,21 @@ import '../core/models.dart';
 import '../core/providers.dart';
 import '../widgets/common.dart';
 
+/// 공고 종류별 색. 캘린더 점과 범례에 같이 쓴다.
+const _kinds = [
+  ('분양', Color(0xFF1D4ED8)),
+  ('무순위', Color(0xFFEA580C)),
+  ('장기전세', Color(0xFF7C3AED)),
+  ('임대', Color(0xFF059669)),
+];
+
+Color _kindColor(Notice n) {
+  for (final k in const ['무순위', '장기전세', '임대', '분양']) {
+    if (n.tags.contains(k)) return _kinds.firstWhere((e) => e.$1 == k).$2;
+  }
+  return const Color(0xFF64748B);
+}
+
 String _monthKey(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
 /// 접수 마감일 기준 월간 캘린더. (지역별 접수 시점 확인용)
@@ -43,6 +58,35 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             focused = f;
           }),
           onPageChanged: (f) => setState(() => focused = f),
+          calendarBuilders: CalendarBuilders<Notice>(
+            markerBuilder: (context, day, events) {
+              if (events.isEmpty) return null;
+              final colors = <Color>{for (final n in events) _kindColor(n)}.take(4).toList();
+              return Positioned(
+                bottom: 4,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  for (final c in colors)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                      decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                    ),
+                ]),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final k in _kinds) ...[
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: k.$2, shape: BoxShape.circle)),
+              const SizedBox(width: 4),
+              Text(k.$1, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(width: 12),
+            ],
+          ]),
         ),
         const Divider(height: 1),
         Expanded(
