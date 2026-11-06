@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
@@ -35,6 +36,14 @@ class ApartmentThumb extends StatelessWidget {
   final double? height;
   final bool showRegion; // 아이콘 아래에 시·도 이름
 
+  /// 유형별 일러스트 파일 이름.
+  static String assetFor(List<String> tags) {
+    if (tags.contains('무순위')) return 'apt_lottery';
+    if (tags.contains('장기전세')) return 'apt_jeonse';
+    if (tags.contains('임대')) return 'apt_rental';
+    return 'apt_sale';
+  }
+
   static IconData iconFor(List<String> tags) {
     if (tags.contains('무순위')) return Icons.bolt_rounded;
     if (tags.contains('장기전세')) return Icons.home_work_rounded;
@@ -50,6 +59,7 @@ class ApartmentThumb extends StatelessWidget {
     return Container(
       width: size,
       height: h,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Gap.chipRadius),
         gradient: LinearGradient(
@@ -58,15 +68,22 @@ class ApartmentThumb extends StatelessWidget {
           colors: [tone.bg, tone.fg.withValues(alpha: 0.22)],
         ),
       ),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        if (showRegion && h > 120) const SizedBox(height: 40), // 위에 얹히는 배지와 겹치지 않게
-        Icon(iconFor(notice.tags), size: (size < h ? size : h) * 0.38, color: tone.fg),
-        if (showRegion && notice.sido.isNotEmpty) ...[
-          SizedBox(height: size < 70 ? 1 : 4),
-          Text(notice.sido,
-              maxLines: 1,
-              style: TextStyle(fontSize: size < 70 ? 11 : 14, height: size < 70 ? 14 / 11 : 20 / 14, fontWeight: FontWeight.w600, color: tone.fg)),
-        ],
+      child: Stack(alignment: Alignment.center, children: [
+        // 단지 일러스트. 넓은 히어로에서는 정사각형으로 가운데에 둔다.
+        SvgPicture.asset('assets/apt/${assetFor(notice.tags)}.svg', width: h < size ? h : size, height: h < size ? h : size, fit: BoxFit.cover),
+        if (showRegion && notice.sido.isNotEmpty)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: h * 14 / 72 > 22 ? 22 : h * 14 / 72,
+              alignment: Alignment.center,
+              child: Text(notice.sido,
+                  maxLines: 1,
+                  style: TextStyle(fontSize: size < 70 ? 10 : 12, height: 1.1, fontWeight: FontWeight.w500, color: Colors.white)),
+            ),
+          ),
       ]),
     );
   }

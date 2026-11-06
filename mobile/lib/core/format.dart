@@ -19,6 +19,12 @@ String fmtPriceMan(int? man) {
   return rest == 0 ? '$eok억' : '$eok억 ${_comma(rest)}만';
 }
 
+/// ㎡ 를 평으로(1평 = 3.3058㎡). 59㎡ → 18평
+int pyeong(double a) => (a / 3.3058).round();
+
+/// '59㎡ (18평)'
+String fmtAreaPy(double? a) => a == null ? '-' : '${fmtArea(a)} (${pyeong(a)}평)';
+
 String fmtArea(double? a) =>
     a == null ? '-' : '${a.toStringAsFixed(a == a.roundToDouble() ? 0 : 2)}㎡';
 
@@ -88,6 +94,11 @@ class TypeSummary {
   String get priceRangeShort => minPrice == null
       ? '-'
       : (minPrice == maxPrice ? fmtPriceShort(minPrice) : '${fmtPriceShort(minPrice)} ~ ${fmtPriceShort(maxPrice)}');
+
+  /// '49㎡ (15평) ~ 59㎡ (18평)'
+  String get areaRangePy => minArea == null
+      ? '-'
+      : (minArea == maxArea ? fmtAreaPy(minArea) : '${fmtAreaPy(minArea)} ~ ${fmtAreaPy(maxArea)}');
 
   String get areaRange => minArea == null
       ? '-'

@@ -293,7 +293,7 @@ class _Summary extends StatelessWidget {
     if (types != null && types.isNotEmpty) {
       final s = TypeSummary(types);
       final parts = [
-        if (s.minArea != null) '전용 ${s.areaRange}',
+        if (s.minArea != null) '전용 ${s.areaRangePy}',
         if (s.minPrice != null) '분양가 ${s.priceRange}',
       ];
       if (parts.isNotEmpty) out.add((Icons.payments_outlined, parts.join(' · ')));
@@ -465,7 +465,7 @@ class _TypesTable extends StatelessWidget {
         ]),
         for (final t in types)
           TableRow(children: [
-            cell('${fmtArea(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}', align: TextAlign.left),
+            cell('${fmtAreaPy(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}', align: TextAlign.left),
             cell(fmtPriceMan(t.priceMan)),
             cell(t.total?.toString() ?? '-'),
           ]),
