@@ -65,6 +65,7 @@ class DetailScreen extends ConsumerWidget {
         const SizedBox(height: Gap.md),
         _Highlights(notice: notice),
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
+        if (notice.plan != null) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),
@@ -471,5 +472,43 @@ class _TypesTable extends StatelessWidget {
           ]),
       ],
     );
+  }
+}
+
+
+/// 평면도(참고): 이미지 검색 결과라 다른 단지 것이 섞일 수 있다. 누르면 크게 본다.
+class _PlanImage extends StatelessWidget {
+  const _PlanImage({required this.notice});
+  final Notice notice;
+
+  Widget _img(String url, {String? hi}) => Image.network(
+        hi ?? url,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => hi != null ? _img(url) : const SizedBox.shrink(),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('평면도 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 6),
+      GestureDetector(
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(12),
+            child: InteractiveViewer(child: _img(notice.plan!, hi: notice.planHi)),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(Gap.chipRadius),
+          child: SizedBox(height: 200, width: double.infinity, child: ColoredBox(color: Colors.white, child: _img(notice.plan!, hi: notice.planHi))),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text('이미지 검색 결과예요. 다른 단지의 평면도일 수 있으니 정확한 구조는 원문 공고를 확인하세요.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]);
   }
 }

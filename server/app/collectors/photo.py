@@ -55,7 +55,12 @@ def find_photo(homepage: str) -> str | None:
     return str(h.url) if str(h.url).startswith("https") else img
 
 
-def search_photo(item: dict, key: str | None = None) -> tuple[str, str | None] | None:
+def search_plan(item: dict, key: str | None = None):
+    """평면도(참고): '단지명 평면도' 이미지 검색 결과."""
+    return search_photo(item, key, kind="평면도")
+
+
+def search_photo(item: dict, key: str | None = None, kind: str = "조감도") -> tuple[str, str | None] | None:
     """홈페이지에서 못 찾은 단지: 카카오 이미지 검색으로 '단지명 조감도' 의 첫 쓸 만한 결과. (썸네일 주소, 원본 주소)."""
     import os
     from .geo import search_query
@@ -65,7 +70,7 @@ def search_photo(item: dict, key: str | None = None) -> tuple[str, str | None] |
     if not key or len(q.replace(" ", "")) < 3:
         return None
     r = requests.get("https://dapi.kakao.com/v2/search/image",
-                     params={"query": f"{q} 조감도", "size": 5, "sort": "accuracy"},
+                     params={"query": f"{q} {kind}", "size": 5, "sort": "accuracy"},
                      headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
     r.raise_for_status()
     for d in r.json().get("documents", []):
