@@ -22,6 +22,26 @@ Color _kindColor(Notice n) {
   return const Color(0xFF64748B);
 }
 
+Widget _dayCircle(BuildContext context, DateTime day, {required bool filled}) {
+  final cs = Theme.of(context).colorScheme;
+  return Align(
+    alignment: Alignment.topCenter,
+    child: Container(
+      margin: const EdgeInsets.only(top: 12),
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: filled ? cs.primary : null,
+        border: filled ? null : Border.all(color: cs.primary),
+      ),
+      child: Text('${day.day}',
+          style: TextStyle(color: filled ? cs.onPrimary : cs.primary, fontWeight: FontWeight.w500)),
+    ),
+  );
+}
+
 String _monthKey(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
 /// 접수 마감일 기준 월간 캘린더. (지역별 접수 시점 확인용)
@@ -58,12 +78,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             focused = f;
           }),
           onPageChanged: (f) => setState(() => focused = f),
+          rowHeight: 56,
+          calendarStyle: const CalendarStyle(outsideDaysVisible: false),
           calendarBuilders: CalendarBuilders<Notice>(
+            // 선택·오늘 표시는 숫자 둘레의 작은 원. 아래 점과 겹치지 않게 위쪽에 둔다.
+            selectedBuilder: (context, day, _) => _dayCircle(context, day, filled: true),
+            todayBuilder: (context, day, _) => _dayCircle(context, day, filled: false),
             markerBuilder: (context, day, events) {
               if (events.isEmpty) return null;
               final colors = <Color>{for (final n in events) _kindColor(n)}.take(4).toList();
               return Positioned(
-                bottom: 4,
+                bottom: 5,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   for (final c in colors)
                     Container(
