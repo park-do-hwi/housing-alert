@@ -1,0 +1,55 @@
+"""분양 홈페이지(청약홈 공고의 홈페이지 주소)에서 대표 이미지(og:image) 주소를 찾는다.
+
+이미지를 내려받아 저장하지는 않는다. 원본 주소만 알려 주고, 앱이 그 주소에서 직접 불러 보여 준다.
+로고·공유용 아이콘처럼 보이는 것은 걸러낸다: 사진 확장자(jpg/webp)만, https 만, 파일 크기 30KB 이상만,
+이름에 logo/favicon/sns/icon/banner 가 든 것은 제외.
+"""
+import logging
+import re
+from urllib.parse import urljoin, urlparse
+
+import requests
+
+log = logging.getLogger(__name__)
+UA = {"User-Agent": "Mozilla/5.0 (compatible; CheongyakRadar/1.0)"}
+BAD = re.compile(r"logo|favicon|sns|icon|banner|share|kakao|naver|default|noimage|blank", re.I)
+OG = [
+    re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image', re.I),
+]
+MIN_BYTES = 30 * 1024
+
+
+def pick_image(html: str, base_url: str) -> str | None:
+    """HTML 에서 쓸 만한 대표 이미지 주소. 없으면 None."""
+    for rx in OG:
+        m = rx.search(html)
+        if not m:
+            continue
+        url = urljoin(base_url, m.group(1).strip())
+        p = urlparse(url)
+        if p.scheme != "https":
+            return None
+        if not re.search(r"\.(jpe?g|webp)(\?|$)", p.path + ("?" + p.query if p.query else ""), re.I):
+            return None
+        if BAD.search(p.path):
+            return None
+        return url
+    return None
+
+
+def find_photo(homepage: str) -> str | None:
+    if not homepage or "apply.lh.or.kr" in homepage:
+        return None
+    url = homepage if homepage.startswith("http") else "http://" + homepage
+    r = requests.get(url, headers=UA, timeout=8)
+    r.encoding = r.apparent_encoding or r.encoding
+    img = pick_image(r.text, r.url)
+    if not img:
+        return None
+    h = requests.head(img, headers=UA, timeout=8, allow_redirects=True)
+    ctype = h.headers.get("Content-Type", "")
+    size = int(h.headers.get("Content-Length", "0") or 0)
+    if h.status_code != 200 or not ctype.startswith("image/") or size < MIN_BYTES:
+        return None
+    return str(h.url) if str(h.url).startswith("https") else img

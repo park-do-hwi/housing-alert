@@ -30,6 +30,8 @@ TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을
 REF_KEYS = ("op", "manage_no", "pblanc_no")
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
+PHOTO_PER_RUN = 40      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
+PHOTO_RETRY_DAYS = 7    # 이미지를 못 찾았을 때 다시 보는 간격
 GEO_RETRY_DAYS = 7      # 위치를 못 찾았을 때 다시 시도하는 간격
 FILES_RETRY_DAYS = 3    # 파일이 아직 없을 때, 처음 본 뒤 이 기간 동안만 다시 확인
 
@@ -79,7 +81,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -120,7 +122,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk"):
+            for k in ("geo", "gchk", "photo", "pchk"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -158,6 +160,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         _fill_files(merged, fetch_files, today, now)
     if geocode:
         _fill_geo(merged, geocode, today)
+    if find_photo:
+        _fill_photo(merged, find_photo, today)
 
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
@@ -231,6 +235,35 @@ def _fill_geo(merged: dict, geocode, today: date) -> None:
             it["gchk"] = today.isoformat()
 
 
+def _fill_photo(merged: dict, find_photo, today: date) -> None:
+    """분양 홈페이지 주소가 있고 아직 이미지가 없는 공고만, 한 번에 PHOTO_PER_RUN 건까지 조회한다.
+    못 찾은 것은 pchk(확인한 날)를 남기고 PHOTO_RETRY_DAYS 일 뒤에 다시 본다(사진은 나중에 올라오기도 한다)."""
+    budget = PHOTO_PER_RUN
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        if budget <= 0:
+            break
+        hp = (it.get("info") or {}).get("homepage")
+        if not hp or it.get("photo"):
+            continue
+        chk = it.get("pchk")
+        if chk and (today - date.fromisoformat(chk)).days < PHOTO_RETRY_DAYS:
+            continue
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
+            continue
+        budget -= 1
+        try:
+            url = find_photo(hp)
+        except Exception:
+            log.warning("photo fetch failed: %s", it["id"])
+            url = None
+        if url:
+            it["photo"] = url
+            it.pop("pchk", None)
+        else:
+            it["pchk"] = today.isoformat()
+
+
 def write(out: Path, items: list[dict], meta: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     # 임시 파일에 쓴 뒤 교체해서, 쓰는 도중에 앱이 반쪽짜리 파일을 읽지 않게 한다
@@ -258,11 +291,12 @@ def main(argv=None):
     out = Path(args.out)
     from .collectors import files
 
-    from .collectors import geo
+    from .collectors import geo, photo
 
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
                         fetch_files=files.fetch_files,
-                        geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None)
+                        geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
+                        find_photo=photo.find_photo)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)

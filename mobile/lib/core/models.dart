@@ -60,6 +60,7 @@ class Notice {
     this.info = const {},
     this.types,
     this.geo,
+    this.photo,
   });
 
   final String id;
@@ -74,6 +75,7 @@ class Notice {
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
   final GeoPoint? geo; // 위치. 못 찾았으면 null
+  final String? photo; // 분양 홈페이지의 대표 이미지 주소(https). 없으면 null
 
   factory Notice.fromJson(Map<String, dynamic> j) => Notice(
         id: j['id'].toString(),
@@ -90,6 +92,7 @@ class Notice {
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
             .toList(),
         geo: GeoPoint.tryParse(j['geo']),
+        photo: (j['photo'] is String && (j['photo'] as String).startsWith('https://')) ? j['photo'] as String : null,
       );
 
   bool get isResult => tags.contains('결과');

@@ -349,3 +349,37 @@ def test_geo_search_query_and_fill():
     assert seen == ["a", "b"]          # 이미 있는 것(c)·최근에 못 찾은 것(d)은 건너뜀
     assert items["a"]["geo"]["approx"] is True
     assert items["b"]["gchk"] == "2026-11-06" and "geo" not in items["b"]
+
+
+def test_photo_pick_and_fill():
+    from app.collectors.photo import pick_image
+    from app.export import _fill_photo
+    from datetime import date
+
+    ok = '<meta property="og:image" content="/upload/og_img/og_2026.jpg">'
+    assert pick_image(ok, "https://a.example/x/") == "https://a.example/upload/og_img/og_2026.jpg"
+    assert pick_image('<meta property="og:image" content="/img/sns_img.png">', "https://a.example/") is None  # 로고·png
+    assert pick_image('<meta property="og:image" content="/data/logo/1.jpg">', "https://a.example/") is None  # 이름에 logo
+    assert pick_image('<meta property="og:image" content="http://a.example/p.jpg">', "https://a.example/") is None  # http
+    assert pick_image("<html></html>", "https://a.example/") is None
+
+    today = date(2026, 11, 7)
+    items = {
+        "a": {"id": "a", "apply_end": "2026-11-20", "info": {"homepage": "https://a.example"}},
+        "b": {"id": "b", "apply_end": "2026-11-21", "info": {"homepage": "https://b.example"}},
+        "c": {"id": "c", "apply_end": "2026-11-22", "info": {}},                                      # 홈페이지 없음
+        "d": {"id": "d", "apply_end": "2026-11-23", "info": {"homepage": "x"}, "pchk": "2026-11-05"},  # 최근에 못 찾음
+        "e": {"id": "e", "apply_end": "2026-11-24", "info": {"homepage": "y"}, "photo": "https://y/p.jpg"},
+    }
+    seen = []
+
+    def fake(hp):
+        seen.append(hp)
+        if hp.startswith("https://a"):
+            return "https://a.example/p.jpg"
+        raise RuntimeError("down")
+
+    _fill_photo(items, fake, today)
+    assert seen == ["https://a.example", "https://b.example"]
+    assert items["a"]["photo"] == "https://a.example/p.jpg"
+    assert items["b"]["pchk"] == "2026-11-07" and "photo" not in items["b"]

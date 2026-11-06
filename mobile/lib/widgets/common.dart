@@ -63,6 +63,18 @@ class ApartmentThumb extends StatelessWidget {
       child: Stack(alignment: Alignment.center, children: [
         // 공고마다 다르게 그려지는 단지 일러스트.
         Positioned.fill(child: ComplexArt(id: notice.id, tags: notice.tags)),
+        // 분양 홈페이지의 대표 이미지가 있으면 위에 덮는다. 불러오는 동안·실패하면 아래 일러스트가 보인다.
+        if (notice.photo != null)
+          Positioned.fill(
+            child: Image.network(
+              notice.photo!,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              frameBuilder: (_, child, frame, sync) =>
+                  AnimatedOpacity(opacity: frame == null && !sync ? 0 : 1, duration: const Duration(milliseconds: 200), child: child),
+            ),
+          ),
         if (showRegion && notice.sido.isNotEmpty)
           Positioned(
             left: 0,
@@ -71,6 +83,7 @@ class ApartmentThumb extends StatelessWidget {
             child: Container(
               height: h * 14 / 72 > 22 ? 22 : h * 14 / 72,
               alignment: Alignment.center,
+              color: notice.photo != null ? Colors.black54 : null,
               child: Text(notice.sido,
                   maxLines: 1,
                   style: TextStyle(fontSize: size < 70 ? 10 : 12, height: 1.1, fontWeight: FontWeight.w500, color: Colors.white)),
