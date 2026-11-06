@@ -81,7 +81,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -161,7 +161,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
     if geocode:
         _fill_geo(merged, geocode, today)
     if find_photo:
-        _fill_photo(merged, find_photo, today)
+        _fill_photo(merged, find_photo, today, search_photo)
 
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
@@ -235,7 +235,7 @@ def _fill_geo(merged: dict, geocode, today: date) -> None:
             it["gchk"] = today.isoformat()
 
 
-def _fill_photo(merged: dict, find_photo, today: date) -> None:
+def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> None:
     """분양 홈페이지 주소가 있고 아직 이미지가 없는 공고만, 한 번에 PHOTO_PER_RUN 건까지 조회한다.
     못 찾은 것은 pchk(확인한 날)를 남기고 PHOTO_RETRY_DAYS 일 뒤에 다시 본다(사진은 나중에 올라오기도 한다)."""
     budget = PHOTO_PER_RUN
@@ -243,7 +243,8 @@ def _fill_photo(merged: dict, find_photo, today: date) -> None:
         if budget <= 0:
             break
         hp = (it.get("info") or {}).get("homepage")
-        if not hp or it.get("photo"):
+        use_search = search_photo is not None and it.get("source") == "APPLYHOME"
+        if (not hp and not use_search) or it.get("photo"):
             continue
         chk = it.get("pchk")
         if chk and (today - date.fromisoformat(chk)).days < PHOTO_RETRY_DAYS:
@@ -252,11 +253,16 @@ def _fill_photo(merged: dict, find_photo, today: date) -> None:
         if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
             continue
         budget -= 1
+        url = None
         try:
-            url = find_photo(hp)
+            url = find_photo(hp) if hp else None
         except Exception:
             log.warning("photo fetch failed: %s", it["id"])
-            url = None
+        if not url and use_search:
+            try:
+                url = search_photo(it)
+            except Exception:
+                log.warning("photo search failed: %s", it["id"])
         if url:
             it["photo"] = url
             it.pop("pchk", None)
@@ -296,7 +302,8 @@ def main(argv=None):
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
                         fetch_files=files.fetch_files,
                         geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
-                        find_photo=photo.find_photo)
+                        find_photo=photo.find_photo,
+                        search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)

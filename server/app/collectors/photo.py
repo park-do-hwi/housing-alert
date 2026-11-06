@@ -53,3 +53,23 @@ def find_photo(homepage: str) -> str | None:
     if h.status_code != 200 or not ctype.startswith("image/") or size < MIN_BYTES:
         return None
     return str(h.url) if str(h.url).startswith("https") else img
+
+
+def search_photo(item: dict, key: str | None = None) -> str | None:
+    """홈페이지에서 못 찾은 청약홈 단지: 카카오 이미지 검색으로 '단지명 조감도' 의 첫 쓸 만한 결과(썸네일 주소)."""
+    import os
+    from .geo import search_query
+
+    key = key or os.environ.get("KAKAO_REST_KEY")
+    q = search_query(item.get("title", ""))
+    if not key or len(q.replace(" ", "")) < 3:
+        return None
+    r = requests.get("https://dapi.kakao.com/v2/search/image",
+                     params={"query": f"{q} 조감도", "size": 5, "sort": "accuracy"},
+                     headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
+    r.raise_for_status()
+    for d in r.json().get("documents", []):
+        th = d.get("thumbnail_url") or ""
+        if th.startswith("https://") and (d.get("width") or 0) >= 400 and not BAD.search(d.get("image_url", "")):
+            return th
+    return None
