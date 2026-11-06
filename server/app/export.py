@@ -122,7 +122,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "pchk"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -243,8 +243,10 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> Non
         if budget <= 0:
             break
         hp = (it.get("info") or {}).get("homepage")
-        use_search = search_photo is not None and it.get("source") == "APPLYHOME"
-        if (not hp and not use_search) or it.get("photo"):
+        use_search = search_photo is not None and (it.get("source") == "APPLYHOME" or bool(it.get("geo")))
+        if it.get("photo") and not (use_search and "kakaocdn.net" in it["photo"] and not it.get("photo_hi")):
+            continue  # (예전에 썸네일만 저장한 검색 결과는 원본 주소를 얻으려고 다시 찾는다)
+        if not hp and not use_search:
             continue
         chk = it.get("pchk")
         if chk and (today - date.fromisoformat(chk)).days < PHOTO_RETRY_DAYS:
@@ -260,7 +262,11 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None) -> Non
             log.warning("photo fetch failed: %s", it["id"])
         if not url and use_search:
             try:
-                url = search_photo(it)
+                found = search_photo(it)
+                if found:
+                    url = found[0]
+                    if found[1]:
+                        it["photo_hi"] = found[1]
             except Exception:
                 log.warning("photo search failed: %s", it["id"])
         if url:

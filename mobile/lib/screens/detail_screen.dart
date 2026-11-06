@@ -223,7 +223,7 @@ class _Hero extends StatelessWidget {
     final theme = Theme.of(context);
     return LayoutBuilder(
       builder: (_, c) => Stack(children: [
-        ApartmentThumb(notice: notice, size: c.maxWidth, height: 168, showRegion: true),
+        ApartmentThumb(notice: notice, size: c.maxWidth, height: 168, showRegion: true, highRes: true),
         Positioned(
           left: 10,
           top: 10,

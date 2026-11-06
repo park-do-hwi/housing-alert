@@ -30,10 +30,11 @@ class TagChip extends StatelessWidget {
 /// 아파트 이미지 자리. 공고 데이터에 사진이 없어서, 유형 색·아이콘·지역명으로 단지를 구분해 보여준다.
 /// 나중에 사진이 생기면 같은 크기의 이미지로 바꿔 끼우면 된다.
 class ApartmentThumb extends StatelessWidget {
-  const ApartmentThumb({super.key, required this.notice, this.size = 64, this.height, this.showRegion = false});
+  const ApartmentThumb({super.key, required this.notice, this.size = 64, this.height, this.showRegion = false, this.highRes = false});
   final Notice notice;
   final double size; // 가로(높이를 따로 주지 않으면 정사각형)
   final double? height;
+  final bool highRes; // 상세 화면: 원본(고해상도) 사진을 먼저 시도하고, 안 되면 작은 사진
   final bool showRegion; // 아이콘 아래에 시·도 이름
 
   static IconData iconFor(List<String> tags) {
@@ -42,6 +43,16 @@ class ApartmentThumb extends StatelessWidget {
     if (tags.contains('임대')) return Icons.holiday_village_rounded;
     return Icons.apartment_rounded;
   }
+
+  static Widget _net(String url, {String? hi}) => Image.network(
+        hi ?? url,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, _, _) => hi != null ? _net(url) : const SizedBox.shrink(),
+        frameBuilder: (_, child, frame, sync) =>
+            AnimatedOpacity(opacity: frame == null && !sync ? 0 : 1, duration: const Duration(milliseconds: 200), child: child),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -75,14 +86,7 @@ class ApartmentThumb extends StatelessWidget {
         // 분양 홈페이지의 대표 이미지가 있으면 위에 덮는다. 불러오는 동안·실패하면 아래 일러스트가 보인다.
         if (notice.photo != null)
           Positioned.fill(
-            child: Image.network(
-              notice.photo!,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              frameBuilder: (_, child, frame, sync) =>
-                  AnimatedOpacity(opacity: frame == null && !sync ? 0 : 1, duration: const Duration(milliseconds: 200), child: child),
-            ),
+            child: _net(notice.photo!, hi: highRes ? notice.photoHi : null),
           ),
         if (notice.photo == null && size >= 50)
           Positioned(
