@@ -19,11 +19,11 @@ String fmtPriceMan(int? man) {
   return rest == 0 ? '$eok억' : '$eok억 ${_comma(rest)}만';
 }
 
-/// ㎡ 를 평으로(1평 = 3.3058㎡). 59㎡ → 18평
-int pyeong(double a) => (a / 3.3058).round();
+/// 전용면적(㎡)을 흔히 말하는 평형(공급면적 기준)으로. 공급면적은 전용의 약 1.33배라서 84㎡ → 34평, 59㎡ → 24평.
+int pyeong(double a) => (a * 1.33 / 3.3058).round();
 
 /// '59㎡ (18평)'
-String fmtAreaPy(double? a) => a == null ? '-' : '${fmtArea(a)} (${pyeong(a)}평)';
+String fmtAreaPy(double? a) => a == null ? '-' : '${fmtArea(a)} (${pyeong(a)}평형)';
 
 String fmtArea(double? a) =>
     a == null ? '-' : '${a.toStringAsFixed(a == a.roundToDouble() ? 0 : 2)}㎡';

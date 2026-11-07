@@ -631,7 +631,7 @@ class _ExamplePlansState extends State<_ExamplePlans> {
       Wrap(spacing: 6, children: [
         for (var i = 0; i < sizes.length; i++)
           ChoiceChip(
-            label: Text('전용 ${sizes[i]}㎡ · ${pyeong(sizes[i].toDouble())}평'),
+            label: Text('전용 ${sizes[i]}㎡ · ${pyeong(sizes[i].toDouble())}평형'),
             selected: i == sel,
             visualDensity: VisualDensity.compact,
             onSelected: (_) => setState(() => sel = i),
@@ -688,7 +688,7 @@ class _PlanImageState extends State<_PlanImage> {
       final m = RegExp(r'^(\d+)').firstMatch(label);
       final a = m == null ? null : double.tryParse(m.group(1)!);
       // 주택형 숫자는 전용면적(㎡). 평으로 바꿔 함께 보여 준다.
-      return a == null ? label : '$label · ${pyeong(a)}평';
+      return a == null ? label : '$label · ${pyeong(a)}평형';
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
