@@ -498,16 +498,20 @@ class _TypesTable extends StatelessWidget {
     return m == null ? type : '${m.group(1)}${m.group(2)}';
   }
 
+  /// 실제 단지 도면을 못 찾았을 때 보여주는 예시 평면도: 전용면적이 가장 가까운 것(59·74·84·101㎡).
+  static String _examplePlan(double? area) {
+    const sizes = [59, 74, 84, 101];
+    final a = area ?? 84;
+    final best = sizes.reduce((x, y) => (x - a).abs() <= (y - a).abs() ? x : y);
+    return 'assets/plans/plan$best.jpg';
+  }
+
   void _showPlan(BuildContext context, HousingType t) {
     final lb = label(t.type);
     final plan = notice.plans.where((p) => p.label == lb).firstOrNull;
-    if (plan == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(notice.plans.isEmpty ? '평면도를 아직 찾지 못했어요' : '$lb 평면도는 찾지 못했어요')));
-      return;
-    }
     Widget img(String url, {String? hi}) => Image.network(hi ?? url,
         fit: BoxFit.contain, errorBuilder: (_, _, _) => hi != null ? img(url) : const SizedBox.shrink());
+    final example = plan == null;
     showDialog(
       context: context,
       builder: (c) => Dialog(
@@ -516,14 +520,28 @@ class _TypesTable extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
             child: Row(children: [
-              Expanded(child: Text('${fmtAreaPy(t.exclusiveArea)} · $lb 평면도 (참고)', style: Theme.of(c).textTheme.titleSmall)),
+              Expanded(
+                  child: Text('${fmtAreaPy(t.exclusiveArea)} · $lb ${example ? '예시 평면도' : '평면도 (참고)'}',
+                      style: Theme.of(c).textTheme.titleSmall)),
               IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close)),
             ]),
           ),
-          Flexible(child: InteractiveViewer(child: ColoredBox(color: Colors.white, child: img(plan.img, hi: plan.hi)))),
+          Flexible(
+            child: InteractiveViewer(
+              child: ColoredBox(
+                color: Colors.white,
+                child: example
+                    ? Image.asset(_examplePlan(t.exclusiveArea), fit: BoxFit.contain)
+                    : img(plan.img, hi: plan.hi),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text('이미지 검색 결과라 다른 단지의 평면도일 수 있어요. 정확한 구조는 원문 공고를 확인하세요.',
+            child: Text(
+                example
+                    ? '이 단지의 실제 도면을 찾지 못해, 비슷한 면적의 예시 도면을 보여드려요. 방 구조와 크기는 실제와 다를 수 있으니 원문 공고를 확인하세요.'
+                    : '이미지 검색 결과라 다른 단지의 평면도일 수 있어요. 정확한 구조는 원문 공고를 확인하세요.',
                 style: Theme.of(c).textTheme.bodySmall),
           ),
         ]),
@@ -573,7 +591,7 @@ class _TypesTable extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 6),
-      Text('주택형을 누르면 평면도(참고)를 볼 수 있어요.',
+      Text('주택형을 누르면 평면도를 볼 수 있어요. (단지 도면이 없으면 예시 도면)',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
   }
