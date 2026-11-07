@@ -91,6 +91,11 @@ def fetch(key: str | None = None, today: date | None = None, limit: int = 600) -
                 raise RuntimeError(f"온비드 응답을 읽지 못했어요(HTTP {r.status_code}): {r.text[:120]}")
             check(payload)
             got = parse(payload)
+            body = (payload.get("response") or payload).get("body") or {}
+            print(f"공매 {yn} p{page}: 응답 {len(_rows(payload))}행, 읽음 {len(got)}, 주거 {sum(g['mid'] == HOUSING for g in got)}, "
+                  f"마감일 있음 {sum(bool(g['end']) for g in got)}, 전체 {body.get('totalCount')}")
+            if page == 1 and not got:
+                print("공매 응답 앞부분:", str(payload)[:400])
             for g in got:
                 if g["mid"] == HOUSING and g["end"] and g["end"] >= today.isoformat() and g["min"]:
                     seen.setdefault(g["id"], g)
