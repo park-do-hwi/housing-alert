@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config.dart';
 import '../core/theme.dart';
+import 'web_screen.dart';
 
 class NewsItem {
   const NewsItem({required this.title, required this.url, required this.source, this.at, this.img});
@@ -14,7 +14,7 @@ class NewsItem {
   final String url;
   final String source;
   final DateTime? at;
-  final String? img; // 영상 썸네일
+  final String? img; // 영상 썸네일(있으면 영상)
 }
 
 class NewsBundle {
@@ -34,7 +34,7 @@ List<NewsItem> _parse(dynamic list) => [
               img: (j['img'] as String?)?.startsWith('https://') == true ? j['img'] as String : null),
     ];
 
-/// 부동산 뉴스·영상(청약·분양·임대·정책). 서버가 30분마다 모아 news.json 으로 올린다.
+/// 청약·분양·임대 뉴스와 영상. 서버가 30분마다 모아 news.json 으로 올린다.
 final newsProvider = FutureProvider<NewsBundle>((ref) async {
   final base = AppConfig.dataBase.replaceAll(RegExp(r'/+$'), '');
   final r = await http.get(Uri.parse('$base/news.json')).timeout(const Duration(seconds: 20));
@@ -42,6 +42,17 @@ final newsProvider = FutureProvider<NewsBundle>((ref) async {
   final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map;
   return NewsBundle(_parse(j['items']), _parse(j['vids']));
 });
+
+String _group(DateTime? at) {
+  if (at == null) return '이전';
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final days = today.difference(DateTime(at.year, at.month, at.day)).inDays;
+  if (days <= 0) return now.difference(at).inHours < 3 ? '방금 전 (3시간 이내)' : '오늘';
+  if (days == 1) return '어제';
+  if (days < 7) return '이번 주';
+  return '이전';
+}
 
 String _ago(DateTime? at) {
   if (at == null) return '';
@@ -51,8 +62,6 @@ String _ago(DateTime? at) {
   return '${d.inDays}일 전';
 }
 
-Future<void> _open(String url) => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-
 class NewsScreen extends ConsumerStatefulWidget {
   const NewsScreen({super.key});
   @override
@@ -60,27 +69,26 @@ class NewsScreen extends ConsumerStatefulWidget {
 }
 
 class _NewsScreenState extends ConsumerState<NewsScreen> {
-  bool videos = false;
+  int mode = 0; // 0 전체, 1 뉴스, 2 영상
 
   @override
   Widget build(BuildContext context) {
     final bundle = ref.watch(newsProvider);
     final t = Theme.of(context).textTheme;
-    Widget msg(String s) => ListView(children: [const SizedBox(height: 120), Center(child: Text(s, textAlign: TextAlign.center, style: t.bodyMedium))]);
+    Widget msg(String s) =>
+        ListView(children: [const SizedBox(height: 120), Center(child: Text(s, textAlign: TextAlign.center, style: t.bodyMedium))]);
     return Scaffold(
       appBar: AppBar(title: const Text('뉴스·영상')),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.sm),
-          child: SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: false, label: Text('부동산 뉴스'), icon: Icon(Icons.newspaper)),
-              ButtonSegment(value: true, label: Text('유튜브 영상'), icon: Icon(Icons.play_circle_outline)),
-            ],
-            selected: {videos},
-            onSelectionChanged: (s) => setState(() => videos = s.first),
-          ),
+          child: Row(children: [
+            for (final (i, l) in const [(0, '전체'), (1, '뉴스'), (2, '영상')])
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(label: Text(l), selected: mode == i, onSelected: (_) => setState(() => mode = i)),
+              ),
+          ]),
         ),
         Expanded(
           child: RefreshIndicator(
@@ -89,18 +97,34 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => msg('불러오지 못했어요.\n아래로 당겨 다시 시도해 주세요.'),
               data: (b) {
-                final list = videos ? b.videos : b.news;
-                if (list.isEmpty) return msg(videos ? '아직 영상이 없어요.' : '아직 뉴스가 없어요.');
-                return ListView.separated(
+                final list = [if (mode != 2) ...b.news, if (mode != 1) ...b.videos]
+                  ..sort((x, y) => (y.at ?? DateTime(2000)).compareTo(x.at ?? DateTime(2000)));
+                if (list.isEmpty) return msg('아직 소식이 없어요.');
+                final rows = <Object>[]; // 구간 제목(String)과 항목(NewsItem)이 섞인 목록
+                String? last;
+                for (final n in list) {
+                  final g = _group(n.at);
+                  if (g != last) rows.add(g);
+                  last = g;
+                  rows.add(n);
+                }
+                return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.section),
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemCount: rows.length,
                   itemBuilder: (_, i) {
-                    final n = list[i];
+                    final r = rows[i];
+                    if (r is String) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 14, bottom: 4),
+                        child: Text(r, style: t.titleSmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                      );
+                    }
+                    final n = r as NewsItem;
                     return InkWell(
-                      onTap: () => _open(n.url),
+                      onTap: () => Navigator.of(context)
+                          .push(MaterialPageRoute<void>(builder: (_) => WebScreen(url: n.url, title: n.title))),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           if (n.img != null) ...[
                             ClipRRect(
@@ -117,7 +141,8 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text(n.title, style: t.titleSmall, maxLines: 3, overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 4),
-                              Text([n.source, _ago(n.at)].where((x) => x.isNotEmpty).join(' · '), style: t.bodySmall),
+                              Text([n.img != null ? '영상' : '뉴스', n.source, _ago(n.at)].where((x) => x.isNotEmpty).join(' · '),
+                                  style: t.bodySmall),
                             ]),
                           ),
                         ]),

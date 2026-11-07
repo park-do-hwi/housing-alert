@@ -36,11 +36,12 @@ def fetch(limit: int = 40) -> list[dict]:
             if n["t"] not in seen:
                 seen.add(n["t"])
                 items.append(n)
+    items = [n for n in items if _ON_TOPIC.search(n["t"]) and not _OFF.search(n["t"])]
     items.sort(key=lambda x: x["at"], reverse=True)
     return items[:limit]
 
 
-_ON_TOPIC = re.compile(r"청약|분양|임대|LH|SH|공공|행복주택|무순위|특별공급|당첨")
+_ON_TOPIC = re.compile(r"청약|분양|임대|LH|SH|공공|행복주택|무순위|특별공급|당첨|입주|주택공급|공공주택|전세|신혼|재건축|재개발")
 _OFF = re.compile(r"비트코인|코인|주식|오피스텔 투자|경매 강의")
 VIDEO_QUERIES = ["청약 분양 정보", "공공임대 신청 방법", "부동산 청약 가이드"]
 
@@ -59,6 +60,6 @@ def fetch_videos(key: str, limit: int = 12) -> list[dict]:
             t = re.sub(r"<[^>]+>", "", d.get("title") or "")
             if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t):
                 seen.add(u)
-                out.append({"t": t[:70], "u": u, "img": th,
-                            "s": d.get("author") or ""})
+                out.append({"t": t[:70], "u": u, "img": th, "s": d.get("author") or "",
+                            "at": d.get("datetime") or ""})
     return out[:limit]

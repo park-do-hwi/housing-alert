@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/format.dart';
@@ -10,6 +11,7 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 import '../widgets/place_map.dart';
 import '../widgets/timeline.dart';
+import 'web_screen.dart';
 
 class DetailScreen extends ConsumerWidget {
   const DetailScreen({super.key, required this.notice});
@@ -35,6 +37,15 @@ class DetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text('${sourceLabel(notice.source)} 공고'), actions: [
+        IconButton(
+          tooltip: '공유',
+          icon: const Icon(Icons.share_outlined),
+          onPressed: () {
+            final e = notice.applyEnd;
+            final period = e != null ? '\n접수 마감 ${e.month}.${e.day}' : '';
+            SharePlus.instance.share(ShareParams(text: '[${sourceLabel(notice.source)}] ${notice.title}$period\n${notice.url}\n- 청약레이더'));
+          },
+        ),
         IconButton(
           tooltip: saved ? '저장 해제' : '관심 공고로 저장',
           icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
@@ -699,7 +710,7 @@ class _Videos extends StatelessWidget {
             final v = videos[i];
             return InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: () => launchUrl(Uri.parse(v.url), mode: LaunchMode.externalApplication),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WebScreen(url: v.url, title: v.title))),
               child: SizedBox(
                 width: 188,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
