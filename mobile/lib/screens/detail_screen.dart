@@ -65,7 +65,7 @@ class DetailScreen extends ConsumerWidget {
           },
         ),
       ]),
-      body: ListView(padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.section), children: [
+      body: ListView(cacheExtent: 20000, padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.section), children: [
         _Hero(notice: notice, badge: badge, tone: tone, phase: phase, now: now),
         const SizedBox(height: Gap.md),
         Wrap(spacing: 6, runSpacing: 4, children: [
@@ -79,13 +79,13 @@ class DetailScreen extends ConsumerWidget {
                 ActionChip(
                   avatar: const Icon(Icons.play_circle_outline, size: 18),
                   label: Text('관련 영상 ${notice.vids.length}'),
-                  onPressed: () => _jump(GlobalObjectKey('${notice.id}#v')),
+                  onPressed: () => _jump(GlobalObjectKey(notice.vids)),
                 ),
               if (notice.nws.isNotEmpty)
                 ActionChip(
                   avatar: const Icon(Icons.article_outlined, size: 18),
                   label: Text('관련 뉴스 ${notice.nws.length}'),
-                  onPressed: () => _jump(GlobalObjectKey('${notice.id}#n')),
+                  onPressed: () => _jump(GlobalObjectKey(notice.nws)),
                 ),
             ]),
           ),
@@ -106,12 +106,12 @@ class DetailScreen extends ConsumerWidget {
         if (notice.vids.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: Gap.md),
-            child: KeyedSubtree(key: GlobalObjectKey('${notice.id}#v'), child: _Videos(videos: notice.vids)),
+            child: KeyedSubtree(key: GlobalObjectKey(notice.vids), child: _Videos(videos: notice.vids)),
           ),
         if (notice.nws.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: Gap.md),
-            child: KeyedSubtree(key: GlobalObjectKey('${notice.id}#n'), child: _RelatedNews(items: notice.nws)),
+            child: KeyedSubtree(key: GlobalObjectKey(notice.nws), child: _RelatedNews(items: notice.nws)),
           ),
         ..._schedule(context, now),
         ..._types(context),
