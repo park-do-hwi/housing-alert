@@ -7,24 +7,37 @@ import re
 import requests
 
 _TYPE = re.compile(r"주택\s*형")
-_COUNT = re.compile(r"모집\s*호수|공급\s*호수|공급\s*세대|세대\s*수|모집\s*세대")
+_COUNT = re.compile(r"모집\s*호수|모집\s*할|공급\s*가능|공급\s*호수|공급\s*세대|세대\s*수|모집\s*세대")
+_EXCL = re.compile(r"주거\s*전용|전용\s*면적")
 _LABEL = re.compile(r"주택\s*타입|타입")
 
 
 def _clean(c) -> str:
-    return re.sub(r"\s+", " ", str(c or "")).strip()
+    return re.sub(r"\s+", "", str(c or ""))
 
 
-def _area(type_cell: str) -> float | None:
-    """'0748500A .' → 74.85, '49A' → 49. 소수점이 빠져 있어, 앞 3자리를 정수부로 본다."""
-    m = re.match(r"^(\d+)", type_cell.replace(" ", ""))
+def _area(cell: str) -> float | None:
+    """'0748500A .' → 74.85, '3528.(14평)' → 35.28, '49A' → 49. PDF에서 소수점이 빠져 있다."""
+    m = re.match(r"^(\d+)", cell.replace(" ", ""))
     if not m:
         return None
     d = m.group(1)
     if len(d) >= 6:
         return float(f"{int(d[:3])}.{d[3:]}")
+    if len(d) in (4, 5):
+        v = int(d) / 100
+        return v if 10 <= v <= 150 else None
     n = int(d)
     return float(n) if 10 <= n <= 300 else None
+
+
+def _label(raw: str, area: float | None) -> str:
+    raw = raw.replace(" ", "")
+    m = re.match(r"^\d+\.?([A-Za-z]\w*)?", raw)
+    letters = (m.group(1) or "") if m else ""
+    if len(re.match(r"^\d+", raw).group(0)) >= 4 and area:
+        return f"{area:g}{letters}"
+    return re.sub(r"[ .,]", "", raw)
 
 
 def _int(s: str) -> int | None:
@@ -41,17 +54,8 @@ def parse_table(rows: list[list]) -> list[dict]:
     head = rows[h:h + 3]
     width = max(len(r) for r in head)
     tcol = next((j for r in head for j, c in enumerate(r) if _TYPE.search(c)), None)
-    ccol = None
-    for pat in (re.compile(r"모집"), _COUNT):
-        for r in head:
-            for j, c in enumerate(r):
-                if pat.search(c) and _COUNT.search(c) or (pat.pattern == "모집" and re.search(r"모집\s*호수", c)):
-                    ccol = j
-                    break
-            if ccol is not None:
-                break
-        if ccol is not None:
-            break
+    ccol = next((j for r in head for j, c in enumerate(r) if _COUNT.search(c)), None)
+    ecol = next((j for r in head for j, c in enumerate(r) if _EXCL.search(c)), None)
     if tcol is None or ccol is None or ccol >= width:
         return []
     lcol = next((j for r in head for j, c in enumerate(r) if _LABEL.search(c)), None)
@@ -66,8 +70,13 @@ def parse_table(rows: list[list]) -> list[dict]:
         n = _int(r[ccol])
         if not raw or not n or not re.match(r"^\d", raw):
             continue
-        label = r[lcol] if lcol is not None and lcol < len(r) and r[lcol] else re.sub(r"[ .]", "", raw)
         area = _area(raw)
+        if ecol is not None and ecol < len(r) and _area(r[ecol]):
+            area = _area(r[ecol])
+        m = re.match(r"^(\d{2,3})(?!\d)", raw)
+        if m and area and abs(area - int(m.group(1))) > 3:
+            area = float(m.group(1))  # 소수점 복원이 주택형 숫자와 크게 어긋나면 주택형 숫자를 쓴다
+        label = r[lcol] if lcol is not None and lcol < len(r) and r[lcol] else _label(raw, area)
         key = (label, area)
         if key in seen:
             continue

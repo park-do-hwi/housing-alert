@@ -513,3 +513,16 @@ def test_attach_parse_table_lh_and_gh():
     (g,) = parse_table(gh)
     assert g["type"] == "49A" and g["total"] == 70 and g["exclusive_area"] == 49.0
     assert parse_table([["연번", "단지명", "성명"], ["1", "a", "b"]]) == []
+
+
+def test_attach_parse_table_split_cells_and_reserve_count():
+    from app.collectors.attach import parse_table
+    rows = [["단지명", "주\n택\n형", "세대당 계약면적(㎡)", None, None, None, "구조/난방", "건설\n호수", "대기중인\n예비자수", "모집할\n예비자수", "비고"],
+            [None, None, "주거\n전용", "주거\n공용", "기타\n공용", "합계", None, None, None, None, None],
+            ["남원노암", "3528\n.\n(14평)", "3528\n.", "1421\n.", "-", "4949\n.", "중앙난방", "118", "0", "30", ""],
+            ["", "3600\n.\n(15평)", "3600\n.", "145\n.", "-", "5050\n.", "", "60", "0", "15", ""]]
+    out = parse_table(rows)
+    assert [(o["type"], o["total"]) for o in out] == [("35.28", 30), ("36", 15)] and out[0]["exclusive_area"] == 35.28
+    sup = [["단지명", "금회공급주택형(㎡)", "주거전용", "구조", "공급가능호수(55호)"], ["파주법원1단지", "26A", "2667.", "벽식", "10"]]
+    (s,) = parse_table(sup)
+    assert s["type"] == "26A" and s["total"] == 10 and s["exclusive_area"] == 26.67
