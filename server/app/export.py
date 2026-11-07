@@ -490,6 +490,14 @@ def main(argv=None):
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)
         sys.exit(1)
     write(out, items, meta)
+    try:
+        from .collectors import news
+
+        n = news.fetch()
+        if n:
+            (out / "news.json").write_text(json.dumps({"items": n}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    except Exception as e:  # 뉴스가 실패해도 공고 수집은 그대로
+        print("뉴스 수집 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '
           f'실패 소스 {meta["failed_sources"] or "없음"}) -> {out}')
 

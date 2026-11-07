@@ -1,0 +1,40 @@
+"""부동산 뉴스: 구글 뉴스 RSS(키 없이 사용 가능)에서 청약·분양·임대 관련 기사를 모은다."""
+import re
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote
+
+import requests
+
+QUERIES = ["청약 분양", "공공임대 LH SH", "부동산 정책 주택공급"]
+
+
+def parse(xml_text: str) -> list[dict]:
+    out = []
+    for it in ET.fromstring(xml_text).iter("item"):
+        title = (it.findtext("title") or "").strip()
+        link = (it.findtext("link") or "").strip()
+        src = (it.findtext("source") or "").strip()
+        if " - " in title:  # 구글 뉴스는 제목 끝에 " - 언론사"를 붙인다
+            title = title.rsplit(" - ", 1)[0]
+        try:
+            at = parsedate_to_datetime(it.findtext("pubDate") or "").isoformat()
+        except Exception:
+            at = ""
+        if title and link.startswith("http"):
+            out.append({"t": re.sub(r"\s+", " ", title), "u": link, "s": src, "at": at})
+    return out
+
+
+def fetch(limit: int = 40) -> list[dict]:
+    seen, items = set(), []
+    for q in QUERIES:
+        url = f"https://news.google.com/rss/search?q={quote(q)}+when:3d&hl=ko&gl=KR&ceid=KR:ko"
+        r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        for n in parse(r.text):
+            if n["t"] not in seen:
+                seen.add(n["t"])
+                items.append(n)
+    items.sort(key=lambda x: x["at"], reverse=True)
+    return items[:limit]
