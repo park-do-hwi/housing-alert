@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'search_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,6 +35,14 @@ class FeedScreen extends ConsumerWidget {
                     ?.copyWith(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ]),
         ]),
+        actions: [
+          IconButton(
+            tooltip: '공고 검색',
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SearchScreen())),
+          ),
+        ],
       ),
       body: Column(children: [
         SizedBox(

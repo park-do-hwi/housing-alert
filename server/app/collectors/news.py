@@ -38,3 +38,24 @@ def fetch(limit: int = 40) -> list[dict]:
                 items.append(n)
     items.sort(key=lambda x: x["at"], reverse=True)
     return items[:limit]
+
+
+VIDEO_QUERIES = ["청약 분양 정보", "공공임대 신청 방법", "부동산 청약 가이드"]
+
+
+def fetch_videos(key: str, limit: int = 12) -> list[dict]:
+    """분양·임대 정보 유튜브 영상(카카오 동영상 검색에서 유튜브만)."""
+    from .videos import _YT
+
+    seen, out = set(), []
+    for q in VIDEO_QUERIES:
+        r = requests.get("https://dapi.kakao.com/v2/search/vclip", params={"query": q, "size": 10, "sort": "recency"},
+                         headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
+        r.raise_for_status()
+        for d in r.json().get("documents", []):
+            u, th = d.get("url") or "", d.get("thumbnail") or ""
+            if _YT.match(u) and th.startswith("https://") and u not in seen:
+                seen.add(u)
+                out.append({"t": re.sub(r"<[^>]+>", "", d.get("title") or "")[:70], "u": u, "img": th,
+                            "s": d.get("author") or ""})
+    return out[:limit]

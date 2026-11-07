@@ -494,8 +494,13 @@ def main(argv=None):
         from .collectors import news
 
         n = news.fetch()
+        v = []
+        try:
+            v = news.fetch_videos(os.environ["KAKAO_REST_KEY"]) if os.environ.get("KAKAO_REST_KEY") else []
+        except Exception as e:
+            print("영상 수집 실패:", e, file=sys.stderr)
         if n:
-            (out / "news.json").write_text(json.dumps({"items": n}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            (out / "news.json").write_text(json.dumps({"items": n, "vids": v}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     except Exception as e:  # 뉴스가 실패해도 공고 수집은 그대로
         print("뉴스 수집 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '

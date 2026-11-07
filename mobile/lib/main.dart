@@ -16,7 +16,6 @@ import 'screens/feed_screen.dart';
 import 'screens/my_schedule_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 
 Future<void> main() async {
@@ -95,7 +94,6 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: IndexedStack(index: index, children: const [
         FeedScreen(),
-        SearchScreen(),
         CalendarScreen(),
         NewsScreen(),
         MyScheduleScreen(),
@@ -106,9 +104,8 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_work_outlined), selectedIcon: Icon(Icons.home_work), label: '공고'),
-          NavigationDestination(icon: Icon(Icons.search), selectedIcon: Icon(Icons.search), label: '검색'),
           NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: '캘린더'),
-          NavigationDestination(icon: Icon(Icons.newspaper_outlined), selectedIcon: Icon(Icons.newspaper), label: '뉴스'),
+          NavigationDestination(icon: Icon(Icons.newspaper_outlined), selectedIcon: Icon(Icons.newspaper), label: '뉴스·영상'),
           NavigationDestination(icon: Icon(Icons.bookmark_border), selectedIcon: Icon(Icons.bookmark), label: '내 일정'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: '설정'),
         ],
