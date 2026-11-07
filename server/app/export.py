@@ -470,7 +470,7 @@ def _fill_market(merged: dict, market, today: date) -> None:
         if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
             continue
         old = it.get("mkt")
-        if old and old.get("at") == today.isoformat() and ("near" in old or not dong_of):
+        if old and old.get("at") == today.isoformat() and (it.get("dong") or not dong_of):
             continue
         try:
             if not it.get("sgg"):
