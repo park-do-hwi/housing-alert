@@ -526,3 +526,12 @@ def test_attach_parse_table_split_cells_and_reserve_count():
     sup = [["단지명", "금회공급주택형(㎡)", "주거전용", "구조", "공급가능호수(55호)"], ["파주법원1단지", "26A", "2667.", "벽식", "10"]]
     (s,) = parse_table(sup)
     assert s["type"] == "26A" and s["total"] == 10 and s["exclusive_area"] == 26.67
+
+
+def test_attach_parse_table_supply_type_header():
+    from app.collectors.attach import parse_table
+    rows = [["공급형별", "공급대상", "공급호수", "", "세대당계약면적(㎡)", "", "", ""],
+            ["", "", "", "", "주거전용", "주거공용", "기타공용", "합계"],
+            ["46A1-", "일반", "13", "", "4694.", "1000.", "500.", "6194."]]
+    (o,) = parse_table(rows)
+    assert o["type"] == "46A1" and o["total"] == 13 and o["exclusive_area"] == 46.94

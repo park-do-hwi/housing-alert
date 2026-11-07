@@ -6,8 +6,8 @@ import re
 
 import requests
 
-_TYPE = re.compile(r"주택\s*형")
-_COUNT = re.compile(r"모집\s*호수|모집\s*할|공급\s*가능|공급\s*호수|공급\s*세대|세대\s*수|모집\s*세대")
+_TYPE = re.compile(r"주택\s*형|공급\s*형별")
+_COUNT = re.compile(r"모집\s*호수|모집\s*할|모집\s*예비자|공급\s*가능|공급\s*호수|공급\s*세대|세대\s*수|모집\s*세대")
 _EXCL = re.compile(r"주거\s*전용|전용\s*면적")
 _LABEL = re.compile(r"주택\s*타입|타입")
 
@@ -37,7 +37,7 @@ def _label(raw: str, area: float | None) -> str:
     letters = (m.group(1) or "") if m else ""
     if len(re.match(r"^\d+", raw).group(0)) >= 4 and area:
         return f"{area:g}{letters}"
-    return re.sub(r"[ .,]", "", raw)
+    return re.sub(r"[ .,\-]+$|[ .,]", "", raw)
 
 
 def _int(s: str) -> int | None:
