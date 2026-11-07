@@ -84,7 +84,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None, plan_validate=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -125,7 +125,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "sgg", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "sgg", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -166,7 +166,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
     if find_photo:
         _fill_photo(merged, find_photo, today, search_photo, validate)
     if search_plan:
-        _fill_plan(merged, search_plan, today)
+        _fill_plan(merged, search_plan, today, plan_validate)
     if market:
         _fill_market(merged, market, today)
 
@@ -309,10 +309,32 @@ def _type_label(t: str) -> str:
     return f"{m.group(1)}{m.group(2)}" if m else (t or "")
 
 
-def _fill_plan(merged: dict, search_plan, today: date) -> None:
+def _fill_plan(merged: dict, search_plan, today: date, validate=None) -> None:
     """평면도(참고) 이미지: 청약홈 분양 단지만, 한 번에 PLAN_PER_RUN 건. 주택형(84A 등)이 있으면 주택형별로
     (면적이 큰 순 최대 4개), 없으면 단지 평면도 한 장. 못 찾으면 plchk 를 남기고 일주일 뒤 재시도."""
     budget = PLAN_PER_RUN
+    if validate:  # 이미 저장된 평면도 중 평면도가 아닌 그림(배치도 등)은 지우고 다시 찾는다
+        vb = 40
+        for it in merged.values():
+            if vb <= 0:
+                break
+            if it.get("plv") or not (it.get("plans") or it.get("plan")):
+                continue
+            vb -= 1
+            try:
+                if it.get("plans"):
+                    keep = [p for p in it["plans"] if not validate(p["img"])]
+                    if len(keep) != len(it["plans"]):
+                        it["plans"] = keep
+                        if not keep:
+                            it.pop("plans")
+                            it.pop("plchk", None)
+                elif validate(it["plan"]):
+                    for k in ("plan", "plan_hi"):
+                        it.pop(k, None)
+                it["plv"] = 1
+            except Exception:
+                pass
     for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
         if budget <= 0:
             break
@@ -427,6 +449,7 @@ def main(argv=None):
                         find_photo=photo.find_photo,
                         search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None,
                         validate=photo.is_map_like if os.environ.get("KAKAO_REST_KEY") else None,
+                        plan_validate=photo.is_not_floorplan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
                         market=(mk.sgg_of, lambda sgg: mk.summarize(
                             [t for ym in mk.months_back(date.today()) for t in mk.fetch_trades(sgg, ym)],

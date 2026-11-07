@@ -72,6 +72,22 @@ def is_map_like(url: str) -> bool:
     return vivid > 0.15 or white > 0.40
 
 
+def is_not_floorplan(url: str) -> bool:
+    """평면도가 아닌 그림인지. 평면도는 흰/밝은 바탕에 선이 있는 도면이다.
+    녹지가 보이는 항공 배치도·조감도 사진이거나, 밝은 바탕이 적으면 평면도가 아니라고 본다."""
+    import io
+
+    from PIL import Image
+
+    r = requests.get(url, headers=UA, timeout=10)
+    r.raise_for_status()
+    px = list(Image.open(io.BytesIO(r.content)).convert("HSV").resize((64, 64)).getdata())
+    light = sum(1 for _, s, v in px if s < 50 and v > 200) / 4096
+    green = sum(1 for h, s, v in px if 40 <= h <= 120 and s > 70 and v > 50) / 4096
+    dark = sum(1 for _, _, v in px if v < 90) / 4096
+    return light < 0.30 or green > 0.12 or dark > 0.35
+
+
 def search_plan(item: dict, type_label: str = "", key: str | None = None):
     """평면도(참고): '단지명 [84A] 평면도' 이미지 검색 결과."""
     return search_photo(item, key, kind=f"{type_label} 평면도".strip())
@@ -101,9 +117,9 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도") ->
     # 상세에서 선명하게 보이도록 큰 원본(가로 800 이상, 원본 주소 있음)을 먼저, 그 안에서는 관련도 순서 그대로
     cands.sort(key=lambda c: not (c[1] and c[2] >= 800))
     for th, hi, _ in cands:
-        if kind == "조감도":
+        if kind == "조감도" or "평면도" in kind:
             try:
-                if is_map_like(th):
+                if (is_map_like(th) if kind == "조감도" else is_not_floorplan(th)):
                     continue
             except Exception:
                 pass  # 판별 실패는 그냥 쓴다
