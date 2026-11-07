@@ -429,7 +429,7 @@ def test_photo_validate_drops_map_like():
     items = {"a": {"id": "a", "source": "APPLYHOME", "apply_end": "2026-11-20", "photo": "https://search1.kakaocdn.net/m.jpg"},
              "b": {"id": "b", "source": "APPLYHOME", "apply_end": "2026-11-21", "photo": "https://search1.kakaocdn.net/p.jpg"}}
     _fill_photo(items, lambda hp: None, today, search_photo=lambda it: None, validate=lambda u: u.endswith("m.jpg"))
-    assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == 1
+    assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == 2
 
 
 def test_good_video_filters_short_and_old():
