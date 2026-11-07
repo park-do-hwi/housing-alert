@@ -77,7 +77,7 @@ def good_video(d: dict, now=None) -> bool:
 
 def fetch_videos(key: str, limit: int = 12, per_channel: int = 2) -> list[dict]:
     """분양·임대 정보 유튜브 영상(카카오 동영상 검색에서 유튜브만). 공식 기관·언론사만, 중복·홍보·너무 짧거나 긴 영상 제외."""
-    from .videos import _YT
+    from .videos import _YT, yt_thumb
 
     seen, titles, per, out = set(), set(), {}, []
     for q in VIDEO_QUERIES:
@@ -97,9 +97,18 @@ def fetch_videos(key: str, limit: int = 12, per_channel: int = 2) -> list[dict]:
             seen.add(u)
             titles.add(_norm(t))
             per[au] = per.get(au, 0) + 1
-            out.append({"t": t[:70], "u": u, "img": th, "s": au, "at": d.get("datetime") or ""})
+            out.append({"t": t[:70], "u": u, "img": yt_thumb(u, th), "s": au, "at": d.get("datetime") or ""})
     out.sort(key=lambda x: x["at"], reverse=True)
     return out[:limit]
+
+
+_INFO = re.compile(r"청약|모집|입주|분양|접수|공고|당첨|경쟁률|특별공급|무순위|임대|신청")
+_DRY = re.compile(r"계약 ?체결|용역|수주|착공|입찰|낙찰|시공사")
+
+
+def _neg(at: str):
+    """최신순 정렬용(문자열 내림차순)."""
+    return tuple(-ord(c) for c in at)
 
 
 def search_notice_news(item: dict, limit: int = 3) -> list[dict]:
@@ -114,7 +123,7 @@ def search_notice_news(item: dict, limit: int = 3) -> list[dict]:
     r.raise_for_status()
     words = [w for w in q.split() if len(w) >= 2][:2]
     out, seen = [], set()
-    for n in sorted(parse(r.text), key=lambda x: x["at"], reverse=True):
+    for n in sorted(parse(r.text), key=lambda x: (not _INFO.search(x["t"]), _DRY.search(x["t"]) is not None, _neg(x["at"]))):
         key = _norm(n["t"])
         if key in seen or not words or not any(w in n["t"] for w in words) or _OFF.search(n["t"]):
             continue

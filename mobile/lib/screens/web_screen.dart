@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+/// 카카오 썸네일(138x78)은 흐려서, 유튜브 주소면 원본 썸네일(320x180)을 쓴다.
+String hqThumb(String url, String img) {
+  final m = RegExp(r'(?:v=|youtu\.be/)([\w-]{11})').firstMatch(url);
+  return m == null ? img : 'https://i.ytimg.com/vi/${m.group(1)}/mqdefault.jpg';
+}
+
 /// 앱 안에서 기사·영상 페이지를 연다. 뒤로 가면 목록으로 돌아온다.
 class WebScreen extends StatefulWidget {
   const WebScreen({super.key, required this.url, required this.title});

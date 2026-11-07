@@ -42,11 +42,11 @@ class AppColors extends ThemeExtension<AppColors> {
   static const dark = AppColors(phase: {
     Phase.closingSoon: Tone(Color(0xFFFFB4AB), Color(0xFF552724)),
     Phase.open: Tone(Color(0xFF86EFAC), Color(0xFF16442E)),
-    Phase.upcoming: Tone(Color(0xFFA9C7FF), Color(0xFF203A69)),
-    Phase.undated: Tone(Color(0xFFCBD5E1), Color(0xFF334155)),
-    Phase.closed: Tone(Color(0xFFCBD5E1), Color(0xFF374151)),
+    Phase.upcoming: Tone(Color(0xFFB7E4CC), Color(0xFF2B4A3A)),
+    Phase.undated: Tone(Color(0xFFD0D0D0), Color(0xFF383838)),
+    Phase.closed: Tone(Color(0xFFD0D0D0), Color(0xFF333333)),
   }, tag: {
-    '분양': Tone(Color(0xFFBFDBFE), Color(0xFF1E3A5F)),
+    '분양': Tone(Color(0xFFB7E4CC), Color(0xFF24402F)),
     '무순위': Tone(Color(0xFFDDD6FE), Color(0xFF3B2B62)),
     '장기전세': Tone(Color(0xFF99F6E4), Color(0xFF164E48)),
     '임대': Tone(Color(0xFFFDE68A), Color(0xFF594015)),
@@ -70,16 +70,16 @@ extension AppColorsContext on BuildContext {
 
 ThemeData buildTheme(Brightness b) {
   final dark = b == Brightness.dark;
-  final scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF1D4ED8), brightness: b).copyWith(
-    primary: dark ? const Color(0xFF79A7FF) : const Color(0xFF1D4ED8),
-    onPrimary: dark ? const Color(0xFF071D42) : Colors.white,
-    surface: dark ? const Color(0xFF0F172A) : const Color(0xFFF7F9FC),
-    onSurface: dark ? const Color(0xFFF8FAFC) : const Color(0xFF111827),
-    onSurfaceVariant: dark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-    surfaceContainerLow: dark ? const Color(0xFF1E293B) : Colors.white,
-    surfaceContainer: dark ? const Color(0xFF1E293B) : Colors.white,
-    surfaceContainerHighest: dark ? const Color(0xFF263449) : const Color(0xFFEFF4FA),
-    outlineVariant: dark ? const Color(0xFF43516B) : const Color(0xFFE2E8F0),
+  final scheme = ColorScheme.fromSeed(seedColor: dark ? const Color(0xFF2E7D5B) : const Color(0xFF1D4ED8), brightness: b).copyWith(
+    primary: dark ? const Color(0xFF7FD3A8) : const Color(0xFF1D4ED8),
+    onPrimary: dark ? const Color(0xFF05291A) : Colors.white,
+    surface: dark ? const Color(0xFF121212) : const Color(0xFFF7F9FC),
+    onSurface: dark ? const Color(0xFFF2F2F2) : const Color(0xFF111827),
+    onSurfaceVariant: dark ? const Color(0xFFC4C4C4) : const Color(0xFF475569),
+    surfaceContainerLow: dark ? const Color(0xFF1E1E1E) : Colors.white,
+    surfaceContainer: dark ? const Color(0xFF1E1E1E) : Colors.white,
+    surfaceContainerHighest: dark ? const Color(0xFF2A2A2A) : const Color(0xFFEFF4FA),
+    outlineVariant: dark ? const Color(0xFF3F3F3F) : const Color(0xFFE2E8F0),
   );
   return ThemeData(
     useMaterial3: true,
@@ -108,7 +108,7 @@ ThemeData buildTheme(Brightness b) {
       iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(
           size: 22, color: st.contains(WidgetState.selected) ? scheme.primary : scheme.onSurfaceVariant)),
       backgroundColor: scheme.surfaceContainerLow,
-      indicatorColor: dark ? const Color(0xFF203A69) : const Color(0xFFDBEAFE),
+      indicatorColor: dark ? const Color(0xFF2B4A3A) : const Color(0xFFDBEAFE),
     ),
     chipTheme: ChipThemeData(
       side: BorderSide(color: scheme.outlineVariant),

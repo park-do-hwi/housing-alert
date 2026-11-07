@@ -130,7 +130,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Stack(alignment: Alignment.center, children: [
-                                Image.network(n.img!, width: 128, height: 72, fit: BoxFit.cover,
+                                Image.network(hqThumb(n.url, n.img!), width: 128, height: 72, fit: BoxFit.cover,
                                     errorBuilder: (_, _, _) => Container(width: 128, height: 72, color: Colors.black12)),
                                 const Icon(Icons.play_circle_fill, size: 28, color: Colors.white70),
                               ]),

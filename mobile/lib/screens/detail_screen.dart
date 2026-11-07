@@ -103,6 +103,10 @@ class DetailScreen extends ConsumerWidget {
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
+        if (notice.plan == null && notice.plans.isEmpty && (notice.types == null || notice.types!.isEmpty)) ...[
+          const SizedBox(height: Gap.md),
+          const _ExamplePlans(),
+        ],
         if (notice.vids.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: Gap.md),
@@ -598,6 +602,57 @@ class _TypesTable extends StatelessWidget {
 }
 
 
+/// 주택형 정보가 없는 공고(LH·SH·GH 등)에 보여주는 예시 평면도. 면적을 골라 비교해 볼 수 있다.
+class _ExamplePlans extends StatefulWidget {
+  const _ExamplePlans();
+  @override
+  State<_ExamplePlans> createState() => _ExamplePlansState();
+}
+
+class _ExamplePlansState extends State<_ExamplePlans> {
+  static const sizes = [59, 74, 84, 101];
+  int sel = 2;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final a = sizes[sel];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('예시 평면도', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 6),
+      Wrap(spacing: 6, children: [
+        for (var i = 0; i < sizes.length; i++)
+          ChoiceChip(
+            label: Text('전용 ${sizes[i]}㎡ · ${pyeong(sizes[i].toDouble())}평'),
+            selected: i == sel,
+            visualDensity: VisualDensity.compact,
+            onSelected: (_) => setState(() => sel = i),
+          ),
+      ]),
+      const SizedBox(height: 6),
+      GestureDetector(
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(12),
+            child: InteractiveViewer(child: ColoredBox(color: Colors.white, child: Image.asset('assets/plans/plan$a.jpg'))),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(Gap.chipRadius),
+          child: SizedBox(
+              height: 220,
+              width: double.infinity,
+              child: ColoredBox(color: Colors.white, child: Image.asset('assets/plans/plan$a.jpg', fit: BoxFit.contain))),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text('이 공고는 주택형 정보가 없어 일반적인 예시 도면을 보여드려요. 실제 구조와 크기는 다를 수 있으니 원문 공고를 확인하세요.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]);
+  }
+}
+
 /// 평면도(참고): 이미지 검색 결과라 다른 단지 것이 섞일 수 있다. 주택형(84A 등)을 골라 보고, 누르면 크게 본다.
 class _PlanImage extends StatefulWidget {
   const _PlanImage({required this.notice});
@@ -767,7 +822,7 @@ class _Videos extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: Stack(alignment: Alignment.center, children: [
-                      Image.network(v.img, width: 188, height: 106, fit: BoxFit.cover,
+                      Image.network(hqThumb(v.url, v.img), width: 188, height: 106, fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => Container(width: 188, height: 106, color: Colors.black12)),
                       const Icon(Icons.play_circle_fill, size: 36, color: Colors.white70),
                     ]),

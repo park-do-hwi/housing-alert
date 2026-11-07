@@ -8,6 +8,12 @@ from .geo import search_query
 _YT = re.compile(r"^https?://(www\.)?(youtube\.com/watch|youtu\.be/|m\.youtube\.com/watch)", re.I)
 
 
+def yt_thumb(url: str, fallback: str = "") -> str:
+    """카카오 썸네일(138x78)은 흐려서, 유튜브 원본 썸네일(320x180)로 바꾼다."""
+    m = re.search(r"(?:v=|youtu\.be/)([\w-]{11})", url or "")
+    return f"https://i.ytimg.com/vi/{m.group(1)}/mqdefault.jpg" if m else fallback
+
+
 def search_videos(item: dict, key: str | None = None, limit: int = 4) -> list[dict]:
     import os
 
@@ -33,7 +39,7 @@ def search_videos(item: dict, key: str | None = None, limit: int = 4) -> list[di
         if key_words and not any(w in t for w in key_words):  # 단지 이름이 제목에 있는 영상만
             continue
         seen.add(u)
-        out.append({"t": t[:60], "u": u, "img": th})
+        out.append({"t": t[:60], "u": u, "img": yt_thumb(u, th)})
         if len(out) >= limit:
             break
     return out
