@@ -64,7 +64,7 @@ def fetch_videos(key: str, limit: int = 12) -> list[dict]:
         for d in r.json().get("documents", []):
             u, th = d.get("url") or "", d.get("thumbnail") or ""
             t = re.sub(r"<[^>]+>", "", d.get("title") or "")
-            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t) \
+            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t) and not _PROMO.search(t) \
                     and TRUSTED.search(d.get("author") or ""):
                 seen.add(u)
                 out.append({"t": t[:70], "u": u, "img": th, "s": d.get("author") or "",
