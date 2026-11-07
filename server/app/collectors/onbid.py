@@ -81,10 +81,10 @@ def fetch(key: str | None = None, today: date | None = None, limit: int = 600) -
     key = key or os.environ.get("DATA_GO_KR_KEY")
     today = today or date.today()
     seen: dict[str, dict] = {}
-    for yn in ("N", "Y"):
+    for prpt, yn in (("0007", "N"), ("0005", "N"), ("0007", "Y"), ("0005", "Y")):  # 압류재산·기타일반재산 × 수의계약 불가/가능
         for page in range(1, 8):
             r = requests.get(URL, params={"serviceKey": key, "resultType": "json", "numOfRows": 3000, "pageNo": page,
-                                          "dspsMthodCd": "0001", "pvctTrgtYn": yn}, timeout=60)
+                                          "dspsMthodCd": "0001", "prptDivCd": prpt, "pvctTrgtYn": yn}, timeout=60)
             try:
                 payload = r.json()
             except ValueError:
@@ -92,7 +92,7 @@ def fetch(key: str | None = None, today: date | None = None, limit: int = 600) -
             check(payload)
             got = parse(payload)
             body = (payload.get("response") or payload).get("body") or {}
-            print(f"공매 {yn} p{page}: 응답 {len(_rows(payload))}행, 읽음 {len(got)}, 주거 {sum(g['mid'] == HOUSING for g in got)}, "
+            print(f"공매 {prpt}/{yn} p{page}: 응답 {len(_rows(payload))}행, 읽음 {len(got)}, 주거 {sum(g['mid'] == HOUSING for g in got)}, "
                   f"마감일 있음 {sum(bool(g['end']) for g in got)}, 전체 {body.get('totalCount')}")
             if page == 1 and not got:
                 print("공매 응답 앞부분:", str(payload)[:400])
