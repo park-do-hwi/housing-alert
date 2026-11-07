@@ -481,3 +481,13 @@ def test_near_trades_picks_same_dong_latest_per_complex():
     out = near_trades(rows, "광교동")
     assert [o["n"] for o in out] == ["A단지", "B단지"] and out[0]["p"] == 91000
     assert near_trades(rows, "") == []
+
+
+def test_onbid_parse():
+    from app.collectors.onbid import parse
+    xml = """<response><body><items><item><CLTR_NO>1</CLTR_NO><CLTR_HSTR_NO>2</CLTR_HSTR_NO><PLNM_NO>3</PLNM_NO>
+    <PBCT_NO>4</PBCT_NO><CLTR_NM>서울 양천구 목동 제504호</CLTR_NM><CTGR_FULL_NM>주거용건물 / 다세대주택</CTGR_FULL_NM>
+    <MIN_BID_PRC>123,000,000</MIN_BID_PRC><APSL_ASES_AVG_AMT>200000000</APSL_ASES_AVG_AMT>
+    <PBCT_BEGN_DTM>20261110100000</PBCT_BEGN_DTM><PBCT_CLS_DTM>20261112170000</PBCT_CLS_DTM></item></items></body></response>"""
+    (a,) = parse(xml)
+    assert a["min"] == 123000000 and a["end"] == "2026-11-12" and "cltrNo=1" in a["u"] and a["cat"].endswith("다세대주택")

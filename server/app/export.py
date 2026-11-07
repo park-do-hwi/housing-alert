@@ -525,6 +525,18 @@ def main(argv=None):
             (out / "news.json").write_text(json.dumps({"items": n, "vids": v}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     except Exception as e:  # 뉴스가 실패해도 공고 수집은 그대로
         print("뉴스 수집 실패:", e, file=sys.stderr)
+    if os.environ.get("DATA_GO_KR_KEY"):
+        try:
+            from .collectors import onbid
+
+            au = onbid.fetch()
+            if au:
+                (out / "auction.json").write_text(
+                    json.dumps({"generated_at": meta["generated_at"], "items": au}, ensure_ascii=False, separators=(",", ":")),
+                    encoding="utf-8")
+            print(f"공매 {len(au)}건")
+        except Exception as e:  # 공매가 실패해도 공고 수집은 그대로
+            print("공매 수집 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '
           f'실패 소스 {meta["failed_sources"] or "없음"}) -> {out}')
 

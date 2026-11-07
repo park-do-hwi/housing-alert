@@ -1,3 +1,4 @@
+import 'auction_screen.dart';
 import 'package:flutter/material.dart';
 import 'search_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +37,12 @@ class FeedScreen extends ConsumerWidget {
           ]),
         ]),
         actions: [
+          IconButton(
+            tooltip: '공매',
+            icon: const Icon(Icons.gavel_outlined),
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AuctionScreen())),
+          ),
           IconButton(
             tooltip: '공고 검색',
             icon: const Icon(Icons.search),
