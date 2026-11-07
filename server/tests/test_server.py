@@ -468,3 +468,16 @@ def test_search_plan_needs_the_complex_homepage(monkeypatch):
     monkeypatch.setattr(photo, "is_not_floorplan", lambda u: False)
     got = photo.search_plan({"title": "시흥거모지구 S-1블록 공공분양", "info": {"homepage": "https://www.lhsg-s1.co.kr"}}, "84A", key="k")
     assert got and got[0].endswith("2.jpg")
+
+
+def test_near_trades_picks_same_dong_latest_per_complex():
+    from app.collectors.market import near_trades
+    rows = [
+        {"dong": "광교동", "apt": "A단지", "a": 84.9, "p": 90000, "d": "20260901", "f": "5"},
+        {"dong": "광교동", "apt": "A단지", "a": 84.7, "p": 91000, "d": "20260920", "f": "7"},
+        {"dong": "광교동", "apt": "B단지", "a": 59.9, "p": 60000, "d": "20260910", "f": "3"},
+        {"dong": "다른동", "apt": "C단지", "a": 84.0, "p": 50000, "d": "20260915", "f": "2"},
+    ]
+    out = near_trades(rows, "광교동")
+    assert [o["n"] for o in out] == ["A단지", "B단지"] and out[0]["p"] == 91000
+    assert near_trades(rows, "") == []

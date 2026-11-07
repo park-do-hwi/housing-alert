@@ -101,7 +101,7 @@ class DetailScreen extends ConsumerWidget {
         const SizedBox(height: Gap.sm),
         _ApplyButton(notice: notice, open: (u) => _open(context, u)),
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
-        if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
+        if ((notice.mkt['near'] as List?)?.isNotEmpty == true) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
         if (notice.plan == null && notice.plans.isEmpty && true) ...[
           const SizedBox(height: Gap.md),
@@ -275,7 +275,7 @@ class _Hero extends StatelessWidget {
     final theme = Theme.of(context);
     return LayoutBuilder(
       builder: (_, c) => Stack(children: [
-        ApartmentThumb(notice: notice, size: c.maxWidth, height: 168, showRegion: true, highRes: true),
+        ApartmentThumb(notice: notice, size: c.maxWidth, height: 240, showRegion: true, highRes: true),
         Positioned(
           left: 10,
           top: 10,
@@ -649,7 +649,7 @@ class _ExamplePlansState extends State<_ExamplePlans> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(Gap.chipRadius),
           child: SizedBox(
-              height: 220,
+              height: 300,
               width: double.infinity,
               child: ColoredBox(color: Colors.white, child: Image.asset('assets/plans/plan$a.jpg', fit: BoxFit.contain))),
         ),
@@ -717,7 +717,7 @@ class _PlanImageState extends State<_PlanImage> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(Gap.chipRadius),
           child: SizedBox(
-              height: 220,
+              height: 300,
               width: double.infinity,
               child: ColoredBox(color: Colors.white, child: _img(cur.img, hi: cur.hi))),
         ),
@@ -742,32 +742,37 @@ class _MarketInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final m = notice.mkt;
-    final per = (m['per_m2'] as num);
-    final avg84 = m['avg84'];
-    // '202609~202611' -> '2026.09~11월'
-    final ym = RegExp(r'^(\d{4})(\d{2})~(\d{4})(\d{2})$').firstMatch('${m['ym'] ?? ''}');
-    final period = ym == null ? '최근 3개월' : '${ym.group(1)}.${ym.group(2)}~${ym.group(4)}월';
-    final rows = <(String, String)>[
-      if (avg84 is num) ('전용 84㎡ 안팎 거래가', '약 ${_eok(avg84)}'),
-      ('3.3㎡(1평)당', '약 ${_eok(per * 3.3058)}'),
-      ('㎡당', '약 ${per.round()}만원'),
-    ];
+    final near = [for (final x in (notice.mkt['near'] as List? ?? const [])) if (x is Map) x];
+    String date(String d) => d.length == 8 ? '${d.substring(4, 6)}.${d.substring(6)}' : d;
+    final head = theme.textTheme.labelMedium;
+    Widget cell(String s, {TextStyle? style, TextAlign align = TextAlign.right}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+          child: Text(s, style: style, textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis),
+        );
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('주변 시세 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      Text('주변 단지 실거래 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 6),
-      for (final (k, v) in rows)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(children: [
-            Expanded(child: Text(k, style: theme.textTheme.bodyMedium)),
-            Text(v, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+      Table(
+        columnWidths: const {0: FlexColumnWidth(2.2), 1: FlexColumnWidth(1.1), 2: FlexColumnWidth(1.2), 3: FlexColumnWidth(0.9)},
+        border: TableBorder(horizontalInside: BorderSide(color: theme.dividerColor)),
+        children: [
+          TableRow(children: [
+            cell('단지', style: head, align: TextAlign.left),
+            cell('전용', style: head),
+            cell('거래가', style: head),
+            cell('거래일', style: head),
           ]),
-        ),
+          for (final x in near)
+            TableRow(children: [
+              cell('${x['n']}', align: TextAlign.left),
+              cell(fmtArea((x['a'] as num?)?.toDouble())),
+              cell(_eok((x['p'] as num?) ?? 0), style: const TextStyle(fontWeight: FontWeight.w700)),
+              cell(date('${x['d'] ?? ''}')),
+            ]),
+        ],
+      ),
       const SizedBox(height: 4),
-      Text(
-          '${notice.sido} 같은 시·군·구의 $period 아파트 매매 실거래 ${m['n'] ?? ''}건 기준(국토교통부)이에요. '
-          '단지 바로 옆 시세가 아니라 참고용이에요.',
+      Text('같은 법정동의 최근 3개월 아파트 매매 실거래예요(국토교통부). 평균이 아니라 단지별 실제 거래이고, 이 공고 단지의 분양가가 아니라 참고용이에요.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
   }

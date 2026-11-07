@@ -129,7 +129,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "dong", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -428,7 +428,8 @@ def _fill_plan(merged: dict, search_plan, today: date, validate=None) -> None:
 def _fill_market(merged: dict, market, today: date) -> None:
     """위치가 잡힌 공고에 주변 시세(참고)를 붙인다. 시·군·구마다 하루에 한 번만 새로 받는다(공고들이 같이 쓴다).
     market = (sgg_of(lat, lng) -> 코드, stats(sgg) -> dict|None)"""
-    sgg_of, stats = market
+    sgg_of, stats, *rest = market
+    dong_of, near_of = rest if rest else (None, None)
     cache: dict[str, dict | None] = {}
     budget = MARKET_PER_RUN
     for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
@@ -439,7 +440,7 @@ def _fill_market(merged: dict, market, today: date) -> None:
         if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
             continue
         old = it.get("mkt")
-        if old and old.get("at") == today.isoformat():
+        if old and old.get("at") == today.isoformat() and ("near" in old or not dong_of):
             continue
         try:
             if not it.get("sgg"):
@@ -453,11 +454,17 @@ def _fill_market(merged: dict, market, today: date) -> None:
             if sgg not in cache:
                 cache[sgg] = stats(sgg)
             st = cache[sgg]
+            if dong_of and st and it.get("dong") is None and budget > 0:
+                budget -= 1
+                it["dong"] = dong_of(geo["lat"], geo["lng"])
         except Exception:
             log.warning("market failed: %s", it["id"])
             continue
         if st:
-            it["mkt"] = {**st, "at": today.isoformat()}
+            res = {k: v for k, v in st.items() if k != "_rows"}
+            if near_of:
+                res["near"] = near_of(st.get("_rows") or [], it.get("dong") or "")
+            it["mkt"] = {**res, "at": today.isoformat()}
 
 
 def write(out: Path, items: list[dict], meta: dict) -> None:
@@ -499,9 +506,7 @@ def main(argv=None):
                         search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_videos=videos.search_videos if os.environ.get("KAKAO_REST_KEY") else None,
                         search_news=news_mod.search_notice_news,
-                        market=(mk.sgg_of, lambda sgg: mk.summarize(
-                            [t for ym in mk.months_back(date.today()) for t in mk.fetch_trades(sgg, ym)],
-                            date.today()))
+                        market=(mk.sgg_of, lambda sgg: mk.stats_for(sgg, date.today()), mk.dong_of, mk.near_trades)
                         if os.environ.get("KAKAO_REST_KEY") and os.environ.get("DATA_GO_KR_KEY") else None)
     if meta["failed_sources"] and not items:
         print("모든 소스가 실패해 파일을 쓰지 않았습니다:", meta["failed_sources"], file=sys.stderr)

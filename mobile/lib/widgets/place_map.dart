@@ -39,7 +39,7 @@ class PlaceMap extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(children: [
         SizedBox(
-          height: 150,
+          height: 240,
           child: Stack(children: [
             FlutterMap(
               options: MapOptions(
