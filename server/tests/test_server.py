@@ -483,11 +483,16 @@ def test_near_trades_picks_same_dong_latest_per_complex():
     assert near_trades(rows, "") == []
 
 
-def test_onbid_parse():
-    from app.collectors.onbid import parse
-    xml = """<response><body><items><item><CLTR_NO>1</CLTR_NO><CLTR_HSTR_NO>2</CLTR_HSTR_NO><PLNM_NO>3</PLNM_NO>
-    <PBCT_NO>4</PBCT_NO><CLTR_NM>서울 양천구 목동 제504호</CLTR_NM><CTGR_FULL_NM>주거용건물 / 다세대주택</CTGR_FULL_NM>
-    <MIN_BID_PRC>123,000,000</MIN_BID_PRC><APSL_ASES_AVG_AMT>200000000</APSL_ASES_AVG_AMT>
-    <PBCT_BEGN_DTM>20261110100000</PBCT_BEGN_DTM><PBCT_CLS_DTM>20261112170000</PBCT_CLS_DTM></item></items></body></response>"""
-    (a,) = parse(xml)
-    assert a["min"] == 123000000 and a["end"] == "2026-11-12" and "cltrNo=1" in a["u"] and a["cat"].endswith("다세대주택")
+def test_onbid_parse_and_check():
+    import pytest
+    from app.collectors.onbid import check, parse
+    row = {"cltrMngNo": "X", "onbidCltrno": "1", "onbidPbancNo": "2", "pbctNo": "3", "pbctCdtnNo": "4",
+           "onbidCltrNm": "서울특별시 양천구 목동 제504호", "cltrUsgMclsCtgrId": "10200", "cltrUsgSclsCtgrNm": "다세대주택",
+           "lctnSdnm": "서울특별시", "lowstBidPrcIndctCont": "123000000", "apslEvlAmt": "200000000",
+           "cltrBidEndDt": "202611121600", "cltrBidBgngDt": "299901021000", "usbdNft": "2"}
+    ok = {"response": {"header": {"resultCode": "00"}, "body": {"items": {"item": [row, {**row, "pbctCdtnNo": ""}]}}}}
+    (a,) = parse(ok)
+    assert a["min"] == 123000000 and a["end"] == "2026-11-12" and a["beg"] == "" and "onbidCltrno=1" in a["u"]
+    check(ok)
+    with pytest.raises(RuntimeError):
+        check({"OpenAPI_ServiceResponse": {"cmmMsgHeader": {"errMsg": "SERVICE_KEY_IS_NOT_REGISTERED", "returnAuthMsg": "x"}}})

@@ -1,16 +1,15 @@
-"""온비드 공매 물건(한국자산관리공사, 공공데이터포털 '캠코공매물건조회서비스'): 주거용 건물 매각 물건.
+"""온비드 공매 물건(한국자산관리공사 '차세대 온비드 부동산 물건목록 조회서비스', 공공데이터포털): 주거용 건물 매각 물건.
 
 공매는 법원경매와 다른 제도이고 입찰은 온비드(onbid.co.kr)에서 한다. 앱에는 목록만 보여주고 원문으로 연결한다.
+옛 openapi.onbid.co.kr 주소는 더 이상 응답하지 않아, 새 게이트웨이(apis.data.go.kr/B010003)를 쓴다.
 """
 import os
-import xml.etree.ElementTree as ET
 from datetime import date
 
 import requests
 
-URL = "http://openapi.onbid.co.kr/openapi/services/KamcoPblsalThingInquireSvc/getKamcoPbctCltrList"
-SIDOS = ["서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시", "대전광역시", "울산광역시", "세종특별자치시",
-         "경기도", "강원특별자치도", "충청북도", "충청남도", "전북특별자치도", "전라남도", "경상북도", "경상남도", "제주특별자치도"]
+URL = "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2"
+HOUSING = "10200"  # 용도 중분류: 주거용건물
 
 
 def _num(s):
@@ -20,63 +19,82 @@ def _num(s):
         return None
 
 
-def _day(s: str | None) -> str:
-    s = (s or "").strip()
-    return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) >= 8 and s[:8].isdigit() else ""
+def _day(s) -> str:
+    s = str(s or "").strip()
+    if len(s) >= 8 and s[:8].isdigit() and not s.startswith("2999"):
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    return ""  # 일정 미정(2999...)은 빈 값
 
 
-def parse(xml_text: str) -> list[dict]:
-    root = ET.fromstring(xml_text)
+def _rows(node) -> list[dict]:
+    """응답 어디에 있든 물건 행(cltrMngNo 를 가진 dict)을 모은다."""
+    if isinstance(node, dict):
+        if "cltrMngNo" in node:
+            return [node]
+        return [r for v in node.values() for r in _rows(v)]
+    if isinstance(node, list):
+        return [r for v in node for r in _rows(v)]
+    return []
+
+
+def parse(payload: dict) -> list[dict]:
     out = []
-    for it in root.iter("item"):
-        g = lambda k: (it.findtext(k) or "").strip()  # noqa: E731
-        name = g("CLTR_NM")
-        if not name:
-            continue
-        no, hstr = g("CLTR_NO"), g("CLTR_HSTR_NO")
-        link = ("https://www.onbid.co.kr/op/cta/cltrdtl/collateralRealEstateDetail.do?"
-                f"cltrHstrNo={hstr}&cltrNo={no}&plnmNo={g('PLNM_NO')}&pbctNo={g('PBCT_NO')}&scrnGrpCd={g('SCRN_GRP_CD') or '0001'}"
-                f"&pbctCdtnNo={g('PBCT_CDTN_NO')}")
-        img = ""
-        for e in it.iter("CLTR_IMG_FILE"):
-            if (e.text or "").startswith("http"):
-                img = e.text.strip()
-                break
+    for r in _rows(payload):
+        g = lambda k: str(r.get(k) or "").strip()  # noqa: E731
+        ids = [g("onbidCltrno"), g("onbidPbancNo"), g("pbctNo"), g("pbctCdtnNo")]
+        name = g("onbidCltrNm")
+        if not name or not all(ids):
+            continue  # 식별자가 하나라도 없으면 원문 링크가 깨진다
+        link = ("https://www.onbid.co.kr/op/cltrpbancinf/cltrdtl/CltrDtlController/mvmnCltrDtl.do?"
+                f"onbidCltrno={ids[0]}&onbidPbancNo={ids[1]}&pbctNo={ids[2]}&pbctCdtnNo={ids[3]}")
+        img = g("thnlImgUrlAdr")
         out.append({
-            "id": f"{no}-{g('PBCT_NO')}",
+            "id": f"{ids[0]}-{ids[2]}",
             "t": name,
-            "cat": g("CTGR_FULL_NM"),
-            "min": _num(g("MIN_BID_PRC") or g("LOW_BID_PRC")),
-            "apsl": _num(g("APSL_ASES_AVG_AMT") or g("APSL_ASES_AMT")),
-            "beg": _day(g("PBCT_BEGN_DTM")),
-            "end": _day(g("PBCT_CLS_DTM")),
+            "cat": g("cltrUsgSclsCtgrNm") or g("cltrUsgMclsCtgrNm"),
+            "mid": g("cltrUsgMclsCtgrId"),
+            "sido": g("lctnSdnm"),
+            "min": _num(g("lowstBidPrcIndctCont")),
+            "apsl": _num(g("apslEvlAmt")),
+            "beg": _day(g("cltrBidBgngDt")),
+            "end": _day(g("cltrBidEndDt")),
+            "fail": _num(g("usbdNft")),
+            "st": g("pbctStatNm"),
             "u": link,
-            "img": img,
+            "img": img if img.startswith("http") else "",
         })
     return out
 
 
-def fetch(key: str | None = None, today: date | None = None, per_sido: int = 60) -> list[dict]:
-    """시·도마다 주거용 건물 매각 물건 최대 per_sido 건. 입찰이 끝난 것은 뺀다."""
+def check(payload: dict) -> None:
+    """오류 봉투(게이트웨이/서비스)이면 이유를 담아 예외를 낸다."""
+    gw = (payload.get("OpenAPI_ServiceResponse") or {}).get("cmmMsgHeader")
+    if gw:
+        raise RuntimeError(f"온비드 게이트웨이 오류: {gw.get('errMsg')} / {gw.get('returnAuthMsg')} (활용신청·키 확인)")
+    hdr = (payload.get("response") or payload).get("header") or {}
+    if hdr.get("resultCode") not in (None, "00"):
+        raise RuntimeError(f"온비드 오류 {hdr.get('resultCode')}: {hdr.get('resultMsg')}")
+
+
+def fetch(key: str | None = None, today: date | None = None, limit: int = 600) -> list[dict]:
+    """주거용 매각 물건 중 입찰 마감일이 오늘 이후인 것을 마감 임박순으로. 일정 미정·마감된 것은 뺀다."""
     key = key or os.environ.get("DATA_GO_KR_KEY")
     today = today or date.today()
-    items: list[dict] = []
-    ok = False
-    for sido in SIDOS:
-        try:
-            r = requests.get(URL, params={"ServiceKey": key, "numOfRows": per_sido, "pageNo": 1, "DPSL_MTD_CD": "0001",
-                                          "CTGR_HIRK_ID": "10000", "CTGR_HIRK_ID_MID": "10200", "SIDO": sido}, timeout=25)
-            r.raise_for_status()
-            got = parse(r.text)
-            ok = True
-        except Exception as e:  # 한 곳이 실패해도 나머지는 계속
-            print(f"공매 {sido} 실패:", e)
-            continue
-        for g in got:
-            g["sido"] = sido
-            if not g["end"] or g["end"] >= today.isoformat():
-                items.append(g)
-    if not ok:
-        raise RuntimeError("공매 API 호출이 모두 실패했습니다(활용신청·키 확인)")
-    items.sort(key=lambda x: x["end"] or "9999")
-    return items
+    seen: dict[str, dict] = {}
+    for yn in ("N", "Y"):
+        for page in range(1, 8):
+            r = requests.get(URL, params={"serviceKey": key, "resultType": "json", "numOfRows": 3000, "pageNo": page,
+                                          "dspsMthodCd": "0001", "pvctTrgtYn": yn}, timeout=60)
+            try:
+                payload = r.json()
+            except ValueError:
+                raise RuntimeError(f"온비드 응답을 읽지 못했어요(HTTP {r.status_code}): {r.text[:120]}")
+            check(payload)
+            got = parse(payload)
+            for g in got:
+                if g["mid"] == HOUSING and g["end"] and g["end"] >= today.isoformat() and g["min"]:
+                    seen.setdefault(g["id"], g)
+            if len(_rows(payload)) < 3000:
+                break
+    items = sorted(seen.values(), key=lambda x: x["end"])
+    return items[:limit]

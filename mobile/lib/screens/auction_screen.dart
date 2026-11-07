@@ -9,9 +9,9 @@ import '../core/theme.dart';
 import 'web_screen.dart';
 
 class AuctionItem {
-  const AuctionItem({required this.id, required this.title, required this.cat, required this.sido, required this.url, this.min, this.apsl, this.end, this.img});
+  const AuctionItem({required this.id, required this.title, required this.cat, required this.sido, required this.url, this.min, this.apsl, this.end, this.img, this.fail});
   final String id, title, cat, sido, url;
-  final int? min, apsl;
+  final int? min, apsl, fail;
   final String? end, img;
 }
 
@@ -31,6 +31,7 @@ final auctionProvider = FutureProvider<List<AuctionItem>>((ref) async {
           sido: (x['sido'] ?? '') as String,
           url: x['u'] as String,
           min: (x['min'] as num?)?.toInt(),
+          fail: (x['fail'] as num?)?.toInt(),
           apsl: (x['apsl'] as num?)?.toInt(),
           end: (x['end'] as String?)?.isEmpty == true ? null : x['end'] as String?,
           img: (x['img'] as String?)?.startsWith('http') == true ? x['img'] as String : null,
@@ -100,7 +101,7 @@ class _AuctionScreenState extends ConsumerState<AuctionScreen> {
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(a.title, style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 4),
-                          Text([a.cat.split('/').last.trim(), if (a.end != null) '입찰마감 ${a.end}'].where((x) => x.isNotEmpty).join(' · '), style: t.bodySmall),
+                          Text([a.cat, if (a.end != null) '입찰마감 ${a.end}', if ((a.fail ?? 0) > 0) '유찰 ${a.fail}회'].where((x) => x.isNotEmpty).join(' · '), style: t.bodySmall),
                           const SizedBox(height: 4),
                           Text('최저입찰가 ${_won(a.min)}${a.apsl != null ? '  ·  감정가 ${_won(a.apsl)}' : ''}',
                               style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.primary)),
