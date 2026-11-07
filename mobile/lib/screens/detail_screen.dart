@@ -189,7 +189,7 @@ class DetailScreen extends ConsumerWidget {
           initiallyExpanded: true,
           shape: const Border(),
           collapsedShape: const Border(),
-          title: Text('${types.length}개 주택형 · 금액은 최고 분양가 기준'),
+          title: Text(types.any((t) => t.priceMan != null) ? '${types.length}개 주택형 · 금액은 최고 분양가 기준' : '${types.length}개 주택형 · 공고문 기준 모집 세대'),
           children: [Padding(padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md), child: _TypesTable(types, notice))],
         ),
       ),
@@ -542,6 +542,7 @@ class _TypesTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final head = theme.textTheme.labelMedium;
+    final hasPrice = types.any((t) => t.priceMan != null);
     Widget cell(String s, {TextStyle? style, TextAlign align = TextAlign.right, VoidCallback? onTap, bool plan = false}) {
       final text = Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -558,23 +559,23 @@ class _TypesTable extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Table(
-        columnWidths: const {
-          0: FlexColumnWidth(1.2),
-          1: FlexColumnWidth(1.6),
-          2: FlexColumnWidth(0.9),
+        columnWidths: {
+          0: const FlexColumnWidth(1.2),
+          if (hasPrice) 1: const FlexColumnWidth(1.6),
+          (hasPrice ? 2 : 1): const FlexColumnWidth(0.9),
         },
         border: TableBorder(horizontalInside: BorderSide(color: theme.dividerColor)),
         children: [
           TableRow(children: [
             cell('전용', style: head, align: TextAlign.left),
-            cell('최고 분양가', style: head),
-            cell('세대', style: head),
+            if (hasPrice) cell('최고 분양가', style: head),
+            cell(hasPrice ? '세대' : '모집 세대', style: head),
           ]),
           for (final t in types)
             TableRow(children: [
               cell('${fmtAreaPy(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}',
                   align: TextAlign.left, onTap: _has(t) ? () => _showPlan(context, t) : null, plan: _has(t)),
-              cell(fmtPriceMan(t.priceMan), onTap: _has(t) ? () => _showPlan(context, t) : null),
+              if (hasPrice) cell(fmtPriceMan(t.priceMan), onTap: _has(t) ? () => _showPlan(context, t) : null),
               cell(t.total?.toString() ?? '-', onTap: _has(t) ? () => _showPlan(context, t) : null),
             ]),
         ],

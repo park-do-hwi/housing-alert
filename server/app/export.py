@@ -29,6 +29,7 @@ RETAIN_DAYS = 30        # 접수 마감 후 목록에 남기는 기간
 TYPES_PER_RUN = 150     # 한 번 실행에서 주택형을 새로 가져올 최대 공고 수
 TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을 새로 안 가져옴
 REF_KEYS = ("op", "manage_no", "pblanc_no")
+ATTACH_PER_RUN = 12     # 한 번 실행에서 공고문 PDF 표를 새로 읽을 최대 공고 수
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
 PHOTO_PER_RUN = 60      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
@@ -88,7 +89,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None, plan_validate=None, search_videos=None, search_news=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, extract_types=None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None, plan_validate=None, search_videos=None, search_news=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -129,7 +130,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "dong", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "dong", "mkt", "tchk"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -165,6 +166,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
 
     if fetch_files:
         _fill_files(merged, fetch_files, today, now)
+    if extract_types:
+        _fill_attach_types(merged, extract_types, today)
     if geocode:
         _fill_geo(merged, geocode, today)
     if find_photo:
@@ -187,6 +190,33 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         "changed": changed_ids,
     }
     return items, meta
+
+
+def _fill_attach_types(merged: dict, extract, today: date) -> None:
+    """주택형이 없는 LH·SH·GH 공고: 공고문 PDF 표에서 주택형·모집 세대수를 읽는다. 한 번에 ATTACH_PER_RUN 건,
+    못 읽으면 tchk(확인한 날)를 남기고 7일 뒤에 다시 본다."""
+    budget = ATTACH_PER_RUN
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        if budget <= 0:
+            break
+        files = (it.get("info") or {}).get("files")
+        if it.get("types") or not files or it.get("ref"):
+            continue
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today:
+            continue
+        chk = it.get("tchk")
+        if chk and (today - date.fromisoformat(chk)).days < 7:
+            continue
+        budget -= 1
+        try:
+            types = extract(files)
+        except Exception:
+            log.warning("attach types failed: %s", it["id"])
+            types = []
+        it["tchk"] = today.isoformat()
+        if types:
+            it["types"] = types
 
 
 def _fill_files(merged: dict, fetch_files, today: date, now: datetime) -> None:
@@ -492,12 +522,13 @@ def main(argv=None):
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO)
     out = Path(args.out)
-    from .collectors import files
+    from .collectors import attach, files
 
     from .collectors import geo, market as mk, news as news_mod, photo, videos
 
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
                         fetch_files=files.fetch_files,
+                        extract_types=attach.extract_types,
                         geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
                         find_photo=photo.find_photo,
                         search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None,
