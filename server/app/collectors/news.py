@@ -55,21 +55,48 @@ VIDEO_QUERIES = ["LH 청약 분양 안내", "LH 공공임대 신청", "SH 서울
                  "국토교통부 주택공급", "마이홈 임대주택", "청약 분양 뉴스"]
 
 
-def fetch_videos(key: str, limit: int = 12) -> list[dict]:
-    """분양·임대 정보 유튜브 영상(카카오 동영상 검색에서 유튜브만)."""
+def _norm(t: str) -> str:
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", t)[:22]
+
+
+def good_video(d: dict, now=None) -> bool:
+    """길이·게시 시점으로 거른다: 1분 30초~40분, 1년 안(날짜를 모르면 통과)."""
+    from datetime import datetime, timedelta, timezone
+
+    pt = d.get("play_time")
+    if isinstance(pt, (int, float)) and pt and not (90 <= pt <= 2400):
+        return False
+    try:
+        at = datetime.fromisoformat((d.get("datetime") or "").replace("Z", "+00:00"))
+        if at < (now or datetime.now(timezone.utc)) - timedelta(days=365):
+            return False
+    except ValueError:
+        pass
+    return True
+
+
+def fetch_videos(key: str, limit: int = 12, per_channel: int = 2) -> list[dict]:
+    """분양·임대 정보 유튜브 영상(카카오 동영상 검색에서 유튜브만). 공식 기관·언론사만, 중복·홍보·너무 짧거나 긴 영상 제외."""
     from .videos import _YT
 
-    seen, out = set(), []
+    seen, titles, per, out = set(), set(), {}, []
     for q in VIDEO_QUERIES:
-        r = requests.get("https://dapi.kakao.com/v2/search/vclip", params={"query": q, "size": 10, "sort": "accuracy"},
+        r = requests.get("https://dapi.kakao.com/v2/search/vclip", params={"query": q, "size": 15, "sort": "accuracy"},
                          headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
         r.raise_for_status()
         for d in r.json().get("documents", []):
             u, th = d.get("url") or "", d.get("thumbnail") or ""
             t = re.sub(r"<[^>]+>", "", d.get("title") or "")
-            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t) and not _PROMO.search(t) \
-                    and TRUSTED.search(d.get("author") or ""):
-                seen.add(u)
-                out.append({"t": t[:70], "u": u, "img": th, "s": d.get("author") or "",
-                            "at": d.get("datetime") or ""})
+            au = d.get("author") or ""
+            if not (_YT.match(u) and th.startswith("https://")) or u in seen or _norm(t) in titles:
+                continue
+            if not (_ON_TOPIC.search(t) and not _OFF.search(t) and not _PROMO.search(t) and TRUSTED.search(au)):
+                continue
+            if not good_video(d) or per.get(au, 0) >= per_channel:
+                continue
+            seen.add(u)
+            titles.add(_norm(t))
+            per[au] = per.get(au, 0) + 1
+            out.append({"t": t[:70], "u": u, "img": th, "s": au, "at": d.get("datetime") or ""})
+    out.sort(key=lambda x: x["at"], reverse=True)
     return out[:limit]

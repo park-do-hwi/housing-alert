@@ -315,6 +315,7 @@ def _type_label(t: str) -> str:
 def _fill_videos(merged: dict, search_videos, today: date) -> None:
     """관련 유튜브 영상(vids). 못 찾으면 vchk 를 남기고 일주일 뒤 다시 본다."""
     budget = VIDEO_PER_RUN
+    used = {v["u"] for it in merged.values() for v in it.get("vids", [])}  # 다른 공고에 이미 쓴 영상은 피한다
     for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
         if budget <= 0:
             break
@@ -332,8 +333,10 @@ def _fill_videos(merged: dict, search_videos, today: date) -> None:
         except Exception:
             log.exception("video search failed: %s", it["id"])
             continue
+        v = [x for x in v if x["u"] not in used]
         if v:
             it["vids"] = v
+            used.update(x["u"] for x in v)
             it.pop("vchk", None)
         else:
             it["vchk"] = today.isoformat()

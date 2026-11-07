@@ -430,3 +430,22 @@ def test_photo_validate_drops_map_like():
              "b": {"id": "b", "source": "APPLYHOME", "apply_end": "2026-11-21", "photo": "https://search1.kakaocdn.net/p.jpg"}}
     _fill_photo(items, lambda hp: None, today, search_photo=lambda it: None, validate=lambda u: u.endswith("m.jpg"))
     assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == 1
+
+
+def test_good_video_filters_short_and_old():
+    from app.collectors.news import good_video
+
+    assert not good_video({"play_time": 30})
+    assert not good_video({"play_time": 300, "datetime": "2024-01-01T00:00:00.000+09:00"})
+    assert good_video({"play_time": 300, "datetime": "2026-10-01T00:00:00.000+09:00"})
+    assert good_video({})
+
+
+def test_fill_videos_avoids_reusing_a_video():
+    from datetime import date
+
+    from app.export import _fill_videos
+
+    merged = {"a": {"id": "a", "apply_end": "2026-11-20"}, "b": {"id": "b", "apply_end": "2026-11-21"}}
+    _fill_videos(merged, lambda it: [{"t": "x", "u": "https://youtu.be/1", "img": "https://i/1.jpg"}], date(2026, 11, 7))
+    assert merged["a"]["vids"] and "vids" not in merged["b"] and merged["b"]["vchk"]

@@ -26,9 +26,9 @@ def search_videos(item: dict, key: str | None = None, limit: int = 4) -> list[di
         u, th, t = d.get("url") or "", d.get("thumbnail") or "", re.sub(r"<[^>]+>", "", d.get("title") or "")
         if not _YT.match(u) or not th.startswith("https://") or u in seen:
             continue
-        from .news import PROMO_HARD
+        from .news import PROMO_HARD, good_video
 
-        if PROMO_HARD.search(t):  # 과장 광고만 뺀다(견본주택·단지정보 영상은 정보)
+        if PROMO_HARD.search(t) or not good_video(d):  # 과장 광고만 뺀다(견본주택·단지정보 영상은 정보)
             continue
         if key_words and not any(w in t for w in key_words):  # 단지 이름이 제목에 있는 영상만
             continue
