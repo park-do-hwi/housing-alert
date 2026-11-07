@@ -35,7 +35,7 @@ def dong_of(lat: float, lng: float, key: str | None = None) -> str:
     r.raise_for_status()
     for d in r.json().get("documents", []):
         if d.get("region_type") == "B":
-            return d.get("region_3_depth_name") or ""
+            return d.get("region_3depth_name") or ""
     return ""
 
 

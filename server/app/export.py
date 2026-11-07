@@ -454,7 +454,7 @@ def _fill_market(merged: dict, market, today: date) -> None:
             if sgg not in cache:
                 cache[sgg] = stats(sgg)
             st = cache[sgg]
-            if dong_of and st and it.get("dong") is None and budget > 0:
+            if dong_of and st and not it.get("dong") and budget > 0:
                 budget -= 1
                 it["dong"] = dong_of(geo["lat"], geo["lng"])
         except Exception:
