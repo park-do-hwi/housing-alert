@@ -327,6 +327,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('부가 정보'), 200, scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('부가 정보'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('2029.01'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('2029.01'), findsOneWidget);
     expect(find.text('부산 수영구'), findsOneWidget);
   });

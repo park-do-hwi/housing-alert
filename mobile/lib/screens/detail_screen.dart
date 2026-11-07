@@ -103,10 +103,6 @@ class DetailScreen extends ConsumerWidget {
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if ((notice.mkt['near'] as List?)?.isNotEmpty == true) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
-        if (notice.plan == null && notice.plans.isEmpty && true) ...[
-          const SizedBox(height: Gap.md),
-          _ExamplePlans(area: notice.types?.firstOrNull?.exclusiveArea),
-        ],
         if (notice.vids.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: Gap.md),
@@ -502,20 +498,14 @@ class _TypesTable extends StatelessWidget {
     return m == null ? type : '${m.group(1)}${m.group(2)}';
   }
 
-  /// 실제 단지 도면을 못 찾았을 때 보여주는 예시 평면도: 전용면적이 가장 가까운 것(59·74·84·101㎡).
-  static String _examplePlan(double? area) {
-    const sizes = [59, 74, 84, 101];
-    final a = area ?? 84;
-    final best = sizes.reduce((x, y) => (x - a).abs() <= (y - a).abs() ? x : y);
-    return 'assets/plans/plan$best.jpg';
-  }
+  bool _has(HousingType t) => notice.plans.any((p) => p.label == label(t.type));
 
   void _showPlan(BuildContext context, HousingType t) {
     final lb = label(t.type);
     final plan = notice.plans.where((p) => p.label == lb).firstOrNull;
+    if (plan == null) return;
     Widget img(String url, {String? hi}) => Image.network(hi ?? url,
         fit: BoxFit.contain, errorBuilder: (_, _, _) => hi != null ? img(url) : const SizedBox.shrink());
-    final example = plan == null;
     showDialog(
       context: context,
       builder: (c) => Dialog(
@@ -525,7 +515,7 @@ class _TypesTable extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
             child: Row(children: [
               Expanded(
-                  child: Text('${fmtAreaPy(t.exclusiveArea)} · $lb ${example ? '예시 평면도' : '평면도 (참고)'}',
+                  child: Text('${fmtAreaPy(t.exclusiveArea)} · $lb 평면도 (참고)',
                       style: Theme.of(c).textTheme.titleSmall)),
               IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close)),
             ]),
@@ -534,18 +524,13 @@ class _TypesTable extends StatelessWidget {
             child: InteractiveViewer(
               child: ColoredBox(
                 color: Colors.white,
-                child: example
-                    ? Image.asset(_examplePlan(t.exclusiveArea), fit: BoxFit.contain)
-                    : img(plan.img, hi: plan.hi),
+                child: img(plan.img, hi: plan.hi),
               ),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(
-                example
-                    ? '이 단지의 실제 도면을 찾지 못해, 비슷한 면적의 예시 도면을 보여드려요. 방 구조와 크기는 실제와 다를 수 있으니 원문 공고를 확인하세요.'
-                    : '이미지 검색 결과라 다른 단지의 평면도일 수 있어요. 정확한 구조는 원문 공고를 확인하세요.',
+            child: Text('이미지 검색 결과라 다른 단지의 평면도일 수 있어요. 정확한 구조는 원문 공고를 확인하세요.',
                 style: Theme.of(c).textTheme.bodySmall),
           ),
         ]),
@@ -588,78 +573,21 @@ class _TypesTable extends StatelessWidget {
           for (final t in types)
             TableRow(children: [
               cell('${fmtAreaPy(t.exclusiveArea)}${t.type.isEmpty ? '' : '\n${t.type}'}',
-                  align: TextAlign.left, onTap: () => _showPlan(context, t), plan: true),
-              cell(fmtPriceMan(t.priceMan), onTap: () => _showPlan(context, t)),
-              cell(t.total?.toString() ?? '-', onTap: () => _showPlan(context, t)),
+                  align: TextAlign.left, onTap: _has(t) ? () => _showPlan(context, t) : null, plan: _has(t)),
+              cell(fmtPriceMan(t.priceMan), onTap: _has(t) ? () => _showPlan(context, t) : null),
+              cell(t.total?.toString() ?? '-', onTap: _has(t) ? () => _showPlan(context, t) : null),
             ]),
         ],
       ),
-      const SizedBox(height: 6),
-      Text('주택형을 누르면 평면도를 볼 수 있어요. (단지 도면이 없으면 예시 도면)',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      if (types.any(_has)) ...[
+        const SizedBox(height: 6),
+        Text('아이콘이 있는 주택형을 누르면 평면도를 볼 수 있어요.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ],
     ]);
   }
 }
 
-
-/// 주택형 정보가 없는 공고(LH·SH·GH 등)에 보여주는 예시 평면도. 면적을 골라 비교해 볼 수 있다.
-class _ExamplePlans extends StatefulWidget {
-  const _ExamplePlans({this.area});
-  final double? area;
-  @override
-  State<_ExamplePlans> createState() => _ExamplePlansState();
-}
-
-class _ExamplePlansState extends State<_ExamplePlans> {
-  static const sizes = [59, 74, 84, 101];
-  late int sel = () {
-    final a = widget.area ?? 84;
-    var best = 0;
-    for (var i = 1; i < sizes.length; i++) {
-      if ((sizes[i] - a).abs() < (sizes[best] - a).abs()) best = i;
-    }
-    return best;
-  }();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final a = sizes[sel];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('예시 평면도', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-      const SizedBox(height: 6),
-      Wrap(spacing: 6, children: [
-        for (var i = 0; i < sizes.length; i++)
-          ChoiceChip(
-            label: Text('전용 ${sizes[i]}㎡ · ${pyeong(sizes[i].toDouble())}평형'),
-            selected: i == sel,
-            visualDensity: VisualDensity.compact,
-            onSelected: (_) => setState(() => sel = i),
-          ),
-      ]),
-      const SizedBox(height: 6),
-      GestureDetector(
-        onTap: () => showDialog(
-          context: context,
-          builder: (_) => Dialog(
-            insetPadding: const EdgeInsets.all(12),
-            child: InteractiveViewer(child: ColoredBox(color: Colors.white, child: Image.asset('assets/plans/plan$a.jpg'))),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(Gap.chipRadius),
-          child: SizedBox(
-              height: 300,
-              width: double.infinity,
-              child: ColoredBox(color: Colors.white, child: Image.asset('assets/plans/plan$a.jpg', fit: BoxFit.contain))),
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text('이 단지의 실제 도면을 찾지 못해 비슷한 면적의 예시 도면을 보여드려요. 실제 구조와 크기는 다를 수 있으니 원문 공고를 확인하세요.',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-    ]);
-  }
-}
 
 /// 평면도(참고): 이미지 검색 결과라 다른 단지 것이 섞일 수 있다. 주택형(84A 등)을 골라 보고, 누르면 크게 본다.
 class _PlanImage extends StatefulWidget {
