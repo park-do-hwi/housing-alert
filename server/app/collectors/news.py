@@ -40,6 +40,8 @@ def fetch(limit: int = 40) -> list[dict]:
     return items[:limit]
 
 
+_ON_TOPIC = re.compile(r"청약|분양|임대|LH|SH|공공|행복주택|무순위|특별공급|당첨")
+_OFF = re.compile(r"비트코인|코인|주식|오피스텔 투자|경매 강의")
 VIDEO_QUERIES = ["청약 분양 정보", "공공임대 신청 방법", "부동산 청약 가이드"]
 
 
@@ -49,13 +51,14 @@ def fetch_videos(key: str, limit: int = 12) -> list[dict]:
 
     seen, out = set(), []
     for q in VIDEO_QUERIES:
-        r = requests.get("https://dapi.kakao.com/v2/search/vclip", params={"query": q, "size": 10, "sort": "recency"},
+        r = requests.get("https://dapi.kakao.com/v2/search/vclip", params={"query": q, "size": 10, "sort": "accuracy"},
                          headers={"Authorization": f"KakaoAK {key}"}, timeout=10)
         r.raise_for_status()
         for d in r.json().get("documents", []):
             u, th = d.get("url") or "", d.get("thumbnail") or ""
-            if _YT.match(u) and th.startswith("https://") and u not in seen:
+            t = re.sub(r"<[^>]+>", "", d.get("title") or "")
+            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t):
                 seen.add(u)
-                out.append({"t": re.sub(r"<[^>]+>", "", d.get("title") or "")[:70], "u": u, "img": th,
+                out.append({"t": t[:70], "u": u, "img": th,
                             "s": d.get("author") or ""})
     return out[:limit]
