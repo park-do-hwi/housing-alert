@@ -43,7 +43,12 @@ def fetch(limit: int = 40) -> list[dict]:
 
 _ON_TOPIC = re.compile(r"청약|분양|임대|LH|SH|공공|행복주택|무순위|특별공급|당첨|입주|주택공급|공공주택|전세|신혼|재건축|재개발")
 _OFF = re.compile(r"비트코인|코인|주식|오피스텔 투자|경매 강의")
-VIDEO_QUERIES = ["청약 분양 정보", "공공임대 신청 방법", "부동산 청약 가이드"]
+# 영상은 공식 기관·언론사 채널만 쓴다(분양 홍보 채널 제외)
+TRUSTED = re.compile(r"LH|한국토지주택|SH|서울주택|한국부동산원|청약홈|국토교통부|국토부|주택도시보증|HUG|마이홈|경기주택|GH|서울시|서울특별시|"
+                     r"KBS|MBC|SBS|EBS|YTN|JTBC|연합뉴스|한국경제|매일경제|서울경제|머니투데이|이데일리|MTN|채널A|TV조선|뉴시스|"
+                     r"헤럴드|아시아경제|조선일보|중앙일보|동아일보|한겨레|경향|뉴스1|파이낸셜|조선비즈|SBS Biz|한경|매경", re.I)
+VIDEO_QUERIES = ["LH 청약 분양 안내", "LH 공공임대 신청", "SH 서울주택도시공사 분양 임대", "청약홈 한국부동산원 청약 방법",
+                 "국토교통부 주택공급", "마이홈 임대주택", "청약 분양 뉴스"]
 
 
 def fetch_videos(key: str, limit: int = 12) -> list[dict]:
@@ -58,7 +63,7 @@ def fetch_videos(key: str, limit: int = 12) -> list[dict]:
         for d in r.json().get("documents", []):
             u, th = d.get("url") or "", d.get("thumbnail") or ""
             t = re.sub(r"<[^>]+>", "", d.get("title") or "")
-            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t):
+            if _YT.match(u) and th.startswith("https://") and u not in seen and _ON_TOPIC.search(t) and not _OFF.search(t) \n                    and TRUSTED.search(d.get("author") or ""):
                 seen.add(u)
                 out.append({"t": t[:70], "u": u, "img": th, "s": d.get("author") or "",
                             "at": d.get("datetime") or ""})
