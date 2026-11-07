@@ -34,6 +34,7 @@ GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대
 PHOTO_PER_RUN = 60      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
 NEWS_PER_RUN = 40       # 한 번 실행에서 관련 기사를 새로 찾을 최대 공고 수
 VIDEO_PER_RUN = 40      # 한 번 실행에서 관련 영상을 새로 찾을 최대 공고 수
+PLAN_VERSION = 2        # 평면도 기준 버전(출처 확인 방식)
 PV_VERSION = 2          # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
 MARKET_PER_RUN = 60     # 한 번 실행에서 시·군·구 코드를 새로 찾을 최대 공고 수
@@ -375,28 +376,11 @@ def _fill_plan(merged: dict, search_plan, today: date, validate=None) -> None:
     """평면도(참고) 이미지: 청약홈 분양 단지만, 한 번에 PLAN_PER_RUN 건. 주택형(84A 등)이 있으면 주택형별로
     (면적이 큰 순 최대 4개), 없으면 단지 평면도 한 장. 못 찾으면 plchk 를 남기고 일주일 뒤 재시도."""
     budget = PLAN_PER_RUN
-    if validate:  # 이미 저장된 평면도 중 평면도가 아닌 그림(배치도 등)은 지우고 다시 찾는다
-        vb = 40
-        for it in merged.values():
-            if vb <= 0:
-                break
-            if it.get("plv") or not (it.get("plans") or it.get("plan")):
-                continue
-            vb -= 1
-            try:
-                if it.get("plans"):
-                    keep = [p for p in it["plans"] if not validate(p["img"])]
-                    if len(keep) != len(it["plans"]):
-                        it["plans"] = keep
-                        if not keep:
-                            it.pop("plans")
-                            it.pop("plchk", None)
-                elif validate(it["plan"]):
-                    for k in ("plan", "plan_hi"):
-                        it.pop(k, None)
-                it["plv"] = 1
-            except Exception:
-                pass
+    for it in merged.values():  # 출처를 모르는 예전 검색 평면도는 지우고 다시 찾는다(PLAN_VERSION 이 바뀔 때마다)
+        if it.get("plv") != PLAN_VERSION:
+            for k in ("plans", "plan", "plan_hi", "plchk"):
+                it.pop(k, None)
+            it["plv"] = PLAN_VERSION
     for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
         if budget <= 0:
             break

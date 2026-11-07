@@ -449,3 +449,22 @@ def test_fill_videos_avoids_reusing_a_video():
     merged = {"a": {"id": "a", "apply_end": "2026-11-20"}, "b": {"id": "b", "apply_end": "2026-11-21"}}
     _fill_videos(merged, lambda it: [{"t": "x", "u": "https://youtu.be/1", "img": "https://i/1.jpg"}], date(2026, 11, 7))
     assert merged["a"]["vids"] and "vids" not in merged["b"] and merged["b"]["vchk"]
+
+
+def test_search_plan_needs_the_complex_homepage(monkeypatch):
+    from app.collectors import photo
+
+    assert photo._host("https://www.lhsg-s1.co.kr/a/b") == "lhsg-s1.co.kr"
+    assert photo.search_plan({"title": "시흥거모지구 S-1블록", "info": {}}, "84A", key="k") is None
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self):
+            return {"documents": [
+                {"thumbnail_url": "https://t/1.jpg", "image_url": "https://x/1.jpg", "width": 900, "doc_url": "https://bus.example.com/x"},
+                {"thumbnail_url": "https://t/2.jpg", "image_url": "https://x/2.jpg", "width": 900, "doc_url": "http://www.lhsg-s1.co.kr/plan"}]}
+
+    monkeypatch.setattr(photo.requests, "get", lambda *a, **k: R())
+    monkeypatch.setattr(photo, "is_not_floorplan", lambda u: False)
+    got = photo.search_plan({"title": "시흥거모지구 S-1블록 공공분양", "info": {"homepage": "https://www.lhsg-s1.co.kr"}}, "84A", key="k")
+    assert got and got[0].endswith("2.jpg")

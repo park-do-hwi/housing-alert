@@ -88,12 +88,24 @@ def is_not_floorplan(url: str) -> bool:
     return light < 0.30 or green > 0.12 or dark > 0.35
 
 
+def _host(url: str) -> str:
+    from urllib.parse import urlparse
+
+    h = urlparse(url if "//" in url else "//" + url).netloc.lower()
+    return h[4:] if h.startswith("www.") else h
+
+
 def search_plan(item: dict, type_label: str = "", key: str | None = None):
-    """평면도(참고): '단지명 [84A] 평면도' 이미지 검색 결과."""
-    return search_photo(item, key, kind=f"{type_label} 평면도".strip())
+    """평면도: '단지명 [84A] 평면도' 이미지 검색 결과 중, 그 단지의 분양 홈페이지에서 나온 이미지만 쓴다.
+    (아무 검색 결과나 쓰면 다른 단지 도면이나 엉뚱한 그림이 섞인다. 홈페이지를 모르면 찾지 않고 예시 도면을 보여 준다.)"""
+    hp = (item.get("info") or {}).get("homepage") or ""
+    host = _host(hp) if hp else ""
+    if not host:
+        return None
+    return search_photo(item, key, kind=f"{type_label} 평면도".strip(), site_host=host)
 
 
-def search_photo(item: dict, key: str | None = None, kind: str = "조감도") -> tuple[str, str | None] | None:
+def search_photo(item: dict, key: str | None = None, kind: str = "조감도", site_host: str | None = None) -> tuple[str, str | None] | None:
     """홈페이지에서 못 찾은 단지: 카카오 이미지 검색으로 '단지명 조감도' 의 첫 쓸 만한 결과. (썸네일 주소, 원본 주소)."""
     import os
     from .geo import search_query
@@ -112,6 +124,8 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도") ->
         hi = d.get("image_url") or ""
         hi = hi if hi.startswith("https://") and re.search(r"\.(jpe?g|webp|png)(\?|$)", hi, re.I) else None
         w = d.get("width") or 0
+        if site_host and site_host not in _host(d.get("doc_url") or ""):
+            continue
         if th.startswith("https://") and w >= 400 and not BAD.search(d.get("image_url", "")):
             cands.append((th, hi, w))
     # 상세에서 선명하게 보이도록 큰 원본(가로 800 이상, 원본 주소 있음)을 먼저, 그 안에서는 관련도 순서 그대로
