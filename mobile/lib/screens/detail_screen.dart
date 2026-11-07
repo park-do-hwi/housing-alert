@@ -25,6 +25,11 @@ class DetailScreen extends ConsumerWidget {
     }
   }
 
+  void _jump(GlobalKey key) {
+    final c = key.currentContext;
+    if (c != null) Scrollable.ensureVisible(c, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final saved = ref.watch(favoritesProvider).contains(notice.id);
@@ -66,6 +71,24 @@ class DetailScreen extends ConsumerWidget {
         Wrap(spacing: 6, runSpacing: 4, children: [
           for (final tag in notice.tags.where((x) => x != '기타')) TagChip(tag),
         ]),
+        if (notice.vids.isNotEmpty || notice.nws.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(spacing: 8, children: [
+              if (notice.vids.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.play_circle_outline, size: 18),
+                  label: Text('관련 영상 ${notice.vids.length}'),
+                  onPressed: () => _jump(GlobalObjectKey('${notice.id}#v')),
+                ),
+              if (notice.nws.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.article_outlined, size: 18),
+                  label: Text('관련 뉴스 ${notice.nws.length}'),
+                  onPressed: () => _jump(GlobalObjectKey('${notice.id}#n')),
+                ),
+            ]),
+          ),
         const SizedBox(height: Gap.md),
         Text(notice.title, style: t.headlineSmall?.copyWith(fontSize: 20, fontWeight: FontWeight.w500, height: 28 / 20)),
         const SizedBox(height: 4),
@@ -80,8 +103,16 @@ class DetailScreen extends ConsumerWidget {
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
-        if (notice.vids.isNotEmpty) ...[const SizedBox(height: Gap.md), _Videos(videos: notice.vids)],
-        if (notice.nws.isNotEmpty) ...[const SizedBox(height: Gap.md), _RelatedNews(items: notice.nws)],
+        if (notice.vids.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: Gap.md),
+            child: KeyedSubtree(key: GlobalObjectKey('${notice.id}#v'), child: _Videos(videos: notice.vids)),
+          ),
+        if (notice.nws.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: Gap.md),
+            child: KeyedSubtree(key: GlobalObjectKey('${notice.id}#n'), child: _RelatedNews(items: notice.nws)),
+          ),
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),

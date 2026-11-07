@@ -259,6 +259,23 @@ class NoticeTile extends StatelessWidget {
                             ?.copyWith(fontSize: 14, height: 19 / 14, fontWeight: FontWeight.w600)),
                     Text([place, if (size.isNotEmpty) size].join(' · '),
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: grey),
+                    if (notice.vids.isNotEmpty || notice.nws.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(children: [
+                          if (notice.vids.isNotEmpty) ...[
+                            Icon(Icons.play_circle_outline, size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 2),
+                            Text('영상 ${notice.vids.length}', style: grey.copyWith(fontSize: 11)),
+                            const SizedBox(width: 8),
+                          ],
+                          if (notice.nws.isNotEmpty) ...[
+                            Icon(Icons.article_outlined, size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 2),
+                            Text('뉴스 ${notice.nws.length}', style: grey.copyWith(fontSize: 11)),
+                          ],
+                        ]),
+                      ),
                     if (price != null && price != '-')
                       Text('분양가 $price',
                           style: TextStyle(
