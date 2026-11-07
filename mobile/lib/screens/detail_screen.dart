@@ -103,9 +103,9 @@ class DetailScreen extends ConsumerWidget {
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
-        if (notice.plan == null && notice.plans.isEmpty && (notice.types == null || notice.types!.isEmpty)) ...[
+        if (notice.plan == null && notice.plans.isEmpty && true) ...[
           const SizedBox(height: Gap.md),
-          const _ExamplePlans(),
+          _ExamplePlans(area: notice.types?.firstOrNull?.exclusiveArea),
         ],
         if (notice.vids.isNotEmpty)
           Padding(
@@ -604,14 +604,22 @@ class _TypesTable extends StatelessWidget {
 
 /// 주택형 정보가 없는 공고(LH·SH·GH 등)에 보여주는 예시 평면도. 면적을 골라 비교해 볼 수 있다.
 class _ExamplePlans extends StatefulWidget {
-  const _ExamplePlans();
+  const _ExamplePlans({this.area});
+  final double? area;
   @override
   State<_ExamplePlans> createState() => _ExamplePlansState();
 }
 
 class _ExamplePlansState extends State<_ExamplePlans> {
   static const sizes = [59, 74, 84, 101];
-  int sel = 2;
+  late int sel = () {
+    final a = widget.area ?? 84;
+    var best = 0;
+    for (var i = 1; i < sizes.length; i++) {
+      if ((sizes[i] - a).abs() < (sizes[best] - a).abs()) best = i;
+    }
+    return best;
+  }();
 
   @override
   Widget build(BuildContext context) {
@@ -647,7 +655,7 @@ class _ExamplePlansState extends State<_ExamplePlans> {
         ),
       ),
       const SizedBox(height: 4),
-      Text('이 공고는 주택형 정보가 없어 일반적인 예시 도면을 보여드려요. 실제 구조와 크기는 다를 수 있으니 원문 공고를 확인하세요.',
+      Text('이 단지의 실제 도면을 찾지 못해 비슷한 면적의 예시 도면을 보여드려요. 실제 구조와 크기는 다를 수 있으니 원문 공고를 확인하세요.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
   }

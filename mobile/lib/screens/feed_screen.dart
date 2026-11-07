@@ -53,14 +53,14 @@ class FeedScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: PopupMenuButton<String?>(
-                  tooltip: '지역',
-                  onSelected: (v) =>
-                      setFilter(v == null ? filter.copyWith(clearSido: true) : filter.copyWith(sido: v)),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(value: null, child: Text('전국')),
-                    for (final s in sidoList) PopupMenuItem(value: s, child: Text(s)),
-                  ],
+                child: GestureDetector(
+                  onTap: () async {
+                    final r = await showDialog<List<String?>>(
+                      context: context,
+                      builder: (c) => _SidoDialog(current: filter.sido, list: sidoList),
+                    );
+                    if (r != null) setFilter(r.first == null ? filter.copyWith(clearSido: true) : filter.copyWith(sido: r.first));
+                  },
                   child: Chip(
                     avatar: const Icon(Icons.place, size: 16),
                     label: Text(filter.sido ?? '전국'),
@@ -221,6 +221,64 @@ class _UpdatedBar extends StatelessWidget {
       child: Text(
         stale ? '오프라인이에요. 마지막으로 받은 공고를 보여드려요 ($when)' : '$when${count == null ? '' : ' · $count건'}',
         style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+}
+
+
+/// 지역 선택: 목록 대신 표(격자) 형태의 팝업.
+class _SidoDialog extends StatelessWidget {
+  const _SidoDialog({required this.current, required this.list});
+  final String? current;
+  final List<String> list;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final all = <String?>[null, ...list];
+    Widget cell(String? v) {
+      final on = v == current;
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => Navigator.pop(context, <String?>[v]),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: on ? cs.primary : cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(v ?? '전국',
+              style: TextStyle(fontWeight: on ? FontWeight.w700 : FontWeight.w400, color: on ? cs.onPrimary : cs.onSurface)),
+        ),
+      );
+    }
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('지역 선택', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Table(
+                children: [
+                  for (var i = 0; i < all.length; i += 3)
+                    TableRow(children: [
+                      for (var j = i; j < i + 3; j++)
+                        Padding(
+                          padding: const EdgeInsets.all(3),
+                          child: j < all.length ? cell(all[j]) : const SizedBox.shrink(),
+                        ),
+                    ]),
+                ],
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }

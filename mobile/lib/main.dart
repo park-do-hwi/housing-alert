@@ -99,16 +99,70 @@ class _HomeShellState extends State<HomeShell> {
         MyScheduleScreen(),
         SettingsScreen(),
       ]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_work_outlined), selectedIcon: Icon(Icons.home_work), label: '공고'),
-          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: '캘린더'),
-          NavigationDestination(icon: Icon(Icons.newspaper_outlined), selectedIcon: Icon(Icons.newspaper), label: '뉴스·영상'),
-          NavigationDestination(icon: Icon(Icons.bookmark_border), selectedIcon: Icon(Icons.bookmark), label: '내 일정'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: '설정'),
-        ],
+      bottomNavigationBar: _NavBar(index: index, onSelect: (i) => setState(() => index = i)),
+    );
+  }
+}
+
+
+/// 하단 메뉴: 선택하면 아이콘과 글자를 함께 감싸는 알약 모양으로 표시한다.
+class _NavBar extends StatelessWidget {
+  const _NavBar({required this.index, required this.onSelect});
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  static const items = [
+    (Icons.home_work_outlined, Icons.home_work, '공고'),
+    (Icons.calendar_month_outlined, Icons.calendar_month, '캘린더'),
+    (Icons.newspaper_outlined, Icons.newspaper, '뉴스·영상'),
+    (Icons.bookmark_border, Icons.bookmark, '내 일정'),
+    (Icons.settings_outlined, Icons.settings, '설정'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: cs.surfaceContainerLow,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(children: [
+            for (final (i, it) in items.indexed)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: i == index,
+                  label: it.$3,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSelect(i),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: i == index ? (dark ? const Color(0xFF2B4A3A) : const Color(0xFFDBEAFE)) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(i == index ? it.$2 : it.$1, size: 22, color: i == index ? cs.primary : cs.onSurfaceVariant),
+                        const SizedBox(height: 2),
+                        Text(it.$3,
+                            maxLines: 1,
+                            style: TextStyle(
+                                fontSize: 11,
+                                height: 14 / 11,
+                                fontWeight: i == index ? FontWeight.w700 : FontWeight.w400,
+                                color: i == index ? cs.primary : cs.onSurfaceVariant)),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+        ),
       ),
     );
   }
