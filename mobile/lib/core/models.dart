@@ -13,6 +13,23 @@ class PlanImage {
   }
 }
 
+/// 공고와 관련된 기사.
+class NewsLink {
+  const NewsLink({required this.title, required this.url, required this.source, this.at});
+  final String title;
+  final String url;
+  final String source;
+  final DateTime? at;
+  static NewsLink? tryParse(dynamic j) {
+    if (j is! Map || j['t'] is! String || j['u'] is! String) return null;
+    return NewsLink(
+        title: j['t'] as String,
+        url: j['u'] as String,
+        source: (j['s'] ?? '') as String,
+        at: DateTime.tryParse((j['at'] ?? '') as String)?.toLocal());
+  }
+}
+
 /// 공고와 관련된 유튜브 영상.
 class VideoLink {
   const VideoLink({required this.title, required this.url, required this.img});
@@ -93,6 +110,7 @@ class Notice {
     this.mkt = const {},
     this.plans = const [],
     this.vids = const [],
+    this.nws = const [],
     this.planHi,
   });
 
@@ -108,6 +126,7 @@ class Notice {
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
   final GeoPoint? geo; // 위치. 못 찾았으면 null
+  final List<NewsLink> nws; // 관련 기사
   final List<VideoLink> vids; // 관련 유튜브 영상
   final List<PlanImage> plans; // 주택형별 평면도(참고)
   final Map<String, dynamic> mkt; // 주변 시세(참고): per_m2(만원/㎡), avg84(만원), n, ym
@@ -131,6 +150,7 @@ class Notice {
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
             .toList(),
         geo: GeoPoint.tryParse(j['geo']),
+        nws: [for (final x in (j['nws'] as List? ?? const [])) ?NewsLink.tryParse(x)],
         vids: [for (final x in (j['vids'] as List? ?? const [])) ?VideoLink.tryParse(x)],
         plans: [for (final x in (j['plans'] as List? ?? const [])) ?PlanImage.tryParse(x)],
         mkt: (j['mkt'] as Map?)?.cast<String, dynamic>() ?? const {},

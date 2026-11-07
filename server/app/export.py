@@ -32,6 +32,7 @@ REF_KEYS = ("op", "manage_no", "pblanc_no")
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
 PHOTO_PER_RUN = 60      # 한 번 실행에서 대표 이미지를 새로 찾을 최대 공고 수
+NEWS_PER_RUN = 40       # 한 번 실행에서 관련 기사를 새로 찾을 최대 공고 수
 VIDEO_PER_RUN = 40      # 한 번 실행에서 관련 영상을 새로 찾을 최대 공고 수
 PV_VERSION = 2          # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
@@ -86,7 +87,7 @@ def _keep(item: dict, today: date) -> bool:
 
 
 def build(previous: list[dict], collectors: dict, fetch_types, today: date | None = None,
-          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None, plan_validate=None, search_videos=None) -> tuple[list[dict], dict]:
+          now: datetime | None = None, fetch_files=None, geocode=None, find_photo=None, search_photo=None, search_plan=None, market=None, validate=None, plan_validate=None, search_videos=None, search_news=None) -> tuple[list[dict], dict]:
     """returns (items, meta). fetch_types(op, manage_no, pblanc_no) -> list[dict],
     fetch_files(fref) -> [{name, url, size}] (LH·SH 공고문 파일. None 이면 조회하지 않음)"""
     today = today or date.today()
@@ -127,7 +128,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "sgg", "mkt"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "mkt"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -173,6 +174,8 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
         _fill_market(merged, market, today)
     if search_videos:
         _fill_videos(merged, search_videos, today)
+    if search_news:
+        _fill_news(merged, search_news, today)
 
     items = sorted(merged.values(), key=lambda x: (x.get("announce_date") or ""), reverse=True)
     meta = {
@@ -311,6 +314,31 @@ def _type_label(t: str) -> str:
     """'084.9500A' -> '84A' (앞 0 제거, 소수점 이하 제거, 뒤의 문자 유지)"""
     m = re.match(r"0*(\d+)(?:\.\d+)?\s*([A-Za-z가-힣]*)", t or "")
     return f"{m.group(1)}{m.group(2)}" if m else (t or "")
+
+
+def _fill_news(merged: dict, search_news, today: date) -> None:
+    """공고별 관련 기사(nws). 한 번에 NEWS_PER_RUN 건, 이미 있는 것은 이틀마다 새 기사로 갱신한다."""
+    budget = NEWS_PER_RUN
+    for it in sorted(merged.values(), key=lambda x: x.get("apply_end") or "9999"):
+        if budget <= 0:
+            break
+        end = it.get("apply_end")
+        if end and date.fromisoformat(end) < today - timedelta(days=TYPES_SKIP_AFTER):
+            continue
+        chk = it.get("nchk")
+        if chk and (today - date.fromisoformat(chk)).days < (2 if it.get("nws") else PHOTO_RETRY_DAYS):
+            continue
+        budget -= 1
+        try:
+            n = search_news(it)
+        except Exception:
+            log.exception("news search failed: %s", it["id"])
+            continue
+        it["nchk"] = today.isoformat()
+        if n:
+            it["nws"] = n
+        else:
+            it.pop("nws", None)
 
 
 def _fill_videos(merged: dict, search_videos, today: date) -> None:
@@ -475,7 +503,7 @@ def main(argv=None):
     out = Path(args.out)
     from .collectors import files
 
-    from .collectors import geo, market as mk, photo, videos
+    from .collectors import geo, market as mk, news as news_mod, photo, videos
 
     items, meta = build(load_previous(out / "notices.json"), COLLECTORS, applyhome.fetch_types,
                         fetch_files=files.fetch_files,
@@ -486,6 +514,7 @@ def main(argv=None):
                         plan_validate=photo.is_not_floorplan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_videos=videos.search_videos if os.environ.get("KAKAO_REST_KEY") else None,
+                        search_news=news_mod.search_notice_news,
                         market=(mk.sgg_of, lambda sgg: mk.summarize(
                             [t for ym in mk.months_back(date.today()) for t in mk.fetch_trades(sgg, ym)],
                             date.today()))

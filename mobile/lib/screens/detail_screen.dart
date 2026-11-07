@@ -81,6 +81,7 @@ class DetailScreen extends ConsumerWidget {
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
         if (notice.vids.isNotEmpty) ...[const SizedBox(height: Gap.md), _Videos(videos: notice.vids)],
+        if (notice.nws.isNotEmpty) ...[const SizedBox(height: Gap.md), _RelatedNews(items: notice.nws)],
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),
@@ -730,6 +731,33 @@ class _Videos extends StatelessWidget {
           },
         ),
       ),
+    ]);
+  }
+}
+
+/// 관련 기사: 누르면 앱 안에서 연다.
+class _RelatedNews extends StatelessWidget {
+  const _RelatedNews({required this.items});
+  final List<NewsLink> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('관련 뉴스', style: t.titleMedium),
+      const SizedBox(height: Gap.sm),
+      for (final n in items)
+        InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WebScreen(url: n.url, title: n.title))),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(n.title, style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(n.source, style: t.bodySmall),
+            ]),
+          ),
+        ),
     ]);
   }
 }

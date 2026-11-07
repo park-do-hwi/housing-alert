@@ -100,3 +100,26 @@ def fetch_videos(key: str, limit: int = 12, per_channel: int = 2) -> list[dict]:
             out.append({"t": t[:70], "u": u, "img": th, "s": au, "at": d.get("datetime") or ""})
     out.sort(key=lambda x: x["at"], reverse=True)
     return out[:limit]
+
+
+def search_notice_news(item: dict, limit: int = 3) -> list[dict]:
+    """공고 단지와 관련된 기사: 구글 뉴스 RSS 에서 단지 이름이 제목에 들어 있는 최신 기사."""
+    from .geo import search_query
+
+    q = search_query(item.get("title", ""))
+    if len(q.replace(" ", "")) < 3:
+        return []
+    r = requests.get(f"https://news.google.com/rss/search?q={quote(q)}&hl=ko&gl=KR&ceid=KR:ko", timeout=15,
+                     headers={"User-Agent": "Mozilla/5.0"})
+    r.raise_for_status()
+    words = [w for w in q.split() if len(w) >= 2][:2]
+    out, seen = [], set()
+    for n in sorted(parse(r.text), key=lambda x: x["at"], reverse=True):
+        key = _norm(n["t"])
+        if key in seen or not words or not any(w in n["t"] for w in words) or _OFF.search(n["t"]):
+            continue
+        seen.add(key)
+        out.append(n)
+        if len(out) >= limit:
+            break
+    return out
