@@ -69,6 +69,7 @@ class DetailScreen extends ConsumerWidget {
         if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
         if (notice.mkt['per_m2'] is num) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
         if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
+        if (notice.vids.isNotEmpty) ...[const SizedBox(height: Gap.md), _Videos(videos: notice.vids)],
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),
@@ -671,5 +672,53 @@ class _ApplyButton extends StatelessWidget {
       label: Text('$name 신청 페이지로 이동'),
       style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
     );
+  }
+}
+
+
+/// 관련 유튜브 영상: 썸네일을 옆으로 넘겨 보고, 누르면 유튜브로 간다.
+class _Videos extends StatelessWidget {
+  const _Videos({required this.videos});
+  final List<VideoLink> videos;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('관련 영상', style: t.titleMedium),
+      const SizedBox(height: 4),
+      Text('유튜브 검색 결과예요. 다른 단지 영상이 섞일 수 있어요.', style: t.bodySmall),
+      const SizedBox(height: Gap.sm),
+      SizedBox(
+        height: 156,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: videos.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (_, i) {
+            final v = videos[i];
+            return InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => launchUrl(Uri.parse(v.url), mode: LaunchMode.externalApplication),
+              child: SizedBox(
+                width: 188,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(alignment: Alignment.center, children: [
+                      Image.network(v.img, width: 188, height: 106, fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(width: 188, height: 106, color: Colors.black12)),
+                      const Icon(Icons.play_circle_fill, size: 36, color: Colors.white70),
+                    ]),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(v.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.bodySmall),
+                ]),
+              ),
+            );
+          },
+        ),
+      ),
+    ]);
   }
 }

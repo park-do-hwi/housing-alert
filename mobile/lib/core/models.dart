@@ -13,6 +13,19 @@ class PlanImage {
   }
 }
 
+/// 공고와 관련된 유튜브 영상.
+class VideoLink {
+  const VideoLink({required this.title, required this.url, required this.img});
+  final String title;
+  final String url;
+  final String img;
+  static VideoLink? tryParse(dynamic j) {
+    if (j is! Map || j['u'] is! String || j['img'] is! String) return null;
+    if (!(j['img'] as String).startsWith('https://')) return null;
+    return VideoLink(title: (j['t'] ?? '') as String, url: j['u'] as String, img: j['img'] as String);
+  }
+}
+
 class HousingType {
   const HousingType({
     required this.type,
@@ -79,6 +92,7 @@ class Notice {
     this.plan,
     this.mkt = const {},
     this.plans = const [],
+    this.vids = const [],
     this.planHi,
   });
 
@@ -94,6 +108,7 @@ class Notice {
   final Map<String, dynamic> info; // 접수 시작·당첨자 발표·세대수 등 (청약홈 공고만 풍부)
   final List<HousingType>? types; // 주택형별 정보. 없으면 null
   final GeoPoint? geo; // 위치. 못 찾았으면 null
+  final List<VideoLink> vids; // 관련 유튜브 영상
   final List<PlanImage> plans; // 주택형별 평면도(참고)
   final Map<String, dynamic> mkt; // 주변 시세(참고): per_m2(만원/㎡), avg84(만원), n, ym
   final String? plan; // 평면도(참고) 검색 결과 이미지
@@ -116,6 +131,7 @@ class Notice {
             ?.map((e) => HousingType.fromJson(e as Map<String, dynamic>))
             .toList(),
         geo: GeoPoint.tryParse(j['geo']),
+        vids: [for (final x in (j['vids'] as List? ?? const [])) ?VideoLink.tryParse(x)],
         plans: [for (final x in (j['plans'] as List? ?? const [])) ?PlanImage.tryParse(x)],
         mkt: (j['mkt'] as Map?)?.cast<String, dynamic>() ?? const {},
         plan: (j['plan'] is String && (j['plan'] as String).startsWith('https://')) ? j['plan'] as String : null,
