@@ -577,7 +577,9 @@ def main(argv=None):
 
             ids = list(meta["new"])
             if os.environ.get("PUSH_TEST"):  # 수동 시험: 접수 중인 공고 1건
-                ids = [i["id"] for i in items if (i.get("apply_end") or "") >= date.today().isoformat()][:1]
+                act = [i for i in items if (i.get("apply_end") or "") >= date.today().isoformat()]
+                act.sort(key=lambda i: i.get("sido") != os.environ.get("PUSH_TEST_SIDO", "서울"))  # 서울 공고 우선
+                ids = [i["id"] for i in act][:1]
             sent = push.notify(items, ids, date.today().isoformat())
             print(f"푸시 {len(sent)}건")
         except Exception as e:  # 푸시가 실패해도 공고 수집은 그대로
