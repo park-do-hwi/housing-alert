@@ -6,7 +6,7 @@ import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 const kakaoNativeKey = String.fromEnvironment('KAKAO_NATIVE_KEY');
 
 Future<void>? _init;
-Future<void> _ensureInit() =>
+Future<void> kakaoEnsureInit() =>
     _init ??= KakaoMapSdk.instance.initialize(kakaoNativeKey);
 
 class KakaoNativeMap extends StatefulWidget {
@@ -32,7 +32,7 @@ class _KakaoNativeMapState extends State<KakaoNativeMap> {
   @override
   void initState() {
     super.initState();
-    _ensureInit()
+    kakaoEnsureInit()
         .then((_) {
           if (mounted) setState(() => _ready = true);
         })

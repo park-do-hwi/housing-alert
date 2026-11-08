@@ -1,3 +1,4 @@
+import 'notice_map_screen.dart';
 import 'push_history_screen.dart';
 
 import 'package:flutter/material.dart';
@@ -66,6 +67,15 @@ class FeedScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const PushHistoryScreen(),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: '분양 지도',
+            icon: const Icon(Icons.map_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NoticeMapScreen(),
               ),
             ),
           ),
