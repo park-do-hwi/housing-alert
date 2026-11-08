@@ -19,6 +19,7 @@ import 'screens/news_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/web_screen.dart';
+import 'widgets/splash_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -110,7 +111,7 @@ class _HousingAppState extends ConsumerState<HousingApp> {
           data: mq.copyWith(
             textScaler: TextScaler.linear(mq.textScaler.scale(1) * 0.92),
           ),
-          child: child!,
+          child: SplashOverlay(child: child!),
         );
       },
       locale: const Locale('ko', 'KR'),
