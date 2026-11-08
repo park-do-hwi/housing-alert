@@ -42,8 +42,11 @@ Set<String> topicsFor(Subscription s) {
 }
 
 class FcmPushService implements PushService {
-  FcmPushService(this._prefs);
+  FcmPushService(this._prefs, {this.onOpen});
   final SharedPreferences _prefs;
+
+  /// 알림을 눌러 앱이 열렸을 때(id, url). 앱이 꺼져 있다가 열린 경우도 포함한다.
+  final void Function(String id, String url)? onOpen;
   bool _ready = false;
   static const _key = 'fcm_topics';
 
@@ -54,8 +57,14 @@ class FcmPushService implements PushService {
       await Firebase.initializeApp();
       await FirebaseMessaging.instance.requestPermission();
       _ready = true;
+      FirebaseMessaging.onMessageOpenedApp.listen(_opened);
+      final first = await FirebaseMessaging.instance.getInitialMessage();
+      if (first != null) _opened(first);
     } catch (_) {}
   }
+
+  void _opened(RemoteMessage m) =>
+      onOpen?.call('${m.data['id'] ?? ''}', '${m.data['url'] ?? ''}');
 
   @override
   Future<void> sync(Subscription s) async {

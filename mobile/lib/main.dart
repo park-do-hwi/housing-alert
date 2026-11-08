@@ -18,6 +18,7 @@ import 'screens/my_schedule_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/web_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +43,31 @@ class HousingApp extends ConsumerStatefulWidget {
 }
 
 class _HousingAppState extends ConsumerState<HousingApp> {
-  late final FcmPushService _push = FcmPushService(ref.read(prefsProvider));
+  late final FcmPushService _push =
+      FcmPushService(ref.read(prefsProvider), onOpen: _openFromPush);
+
+  /// 알림을 누르면 그 공고의 상세 화면으로. 목록에 없으면 원문 페이지를 연다.
+  Future<void> _openFromPush(String id, String url) async {
+    // 처음 켜질 때는 공고를 아직 못 불러왔을 수 있어 최대 6초까지 기다린다.
+    final keep = ref.listenManual(noticesProvider, (_, _) {}); // autoDispose 라서 붙들어 둔다
+    try {
+      for (var i = 0; i < 12; i++) {
+        final all = ref.read(noticesProvider).value;
+        if (all != null) {
+          final hit = all.where((n) => n.id == id).toList();
+          if (hit.isNotEmpty) {
+            router.push('/notice', extra: hit.first);
+            return;
+          }
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    } finally {
+      keep.close();
+    }
+    if (url.startsWith('http')) router.push('/web', extra: url);
+  }
 
   @override
   void initState() {
@@ -60,6 +85,11 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       GoRoute(
         path: '/notice',
         builder: (_, state) => DetailScreen(notice: state.extra! as Notice),
+      ),
+      GoRoute(
+        path: '/web',
+        builder: (_, state) =>
+            WebScreen(url: state.extra! as String, title: '공고 원문'),
       ),
     ],
   );

@@ -1,4 +1,3 @@
-import 'auction_screen.dart';
 import 'push_history_screen.dart';
 
 import 'package:flutter/material.dart';
@@ -62,13 +61,7 @@ class FeedScreen extends ConsumerWidget {
               ),
             ),
           ),
-          IconButton(
-            tooltip: '공매',
-            icon: const Icon(Icons.gavel_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const AuctionScreen()),
-            ),
-          ),
+          // 공매(경매)는 2차 버전에서. 화면 코드는 auction_screen.dart 에 남겨 둔다.
           IconButton(
             tooltip: '공고 검색',
             icon: const Icon(Icons.search),
