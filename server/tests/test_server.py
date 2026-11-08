@@ -555,3 +555,14 @@ def test_push_history_merge():
     h = push.merge_history([{"id": "A", "title": "old"}, {"id": "Z"}], [a, b], "t")
     assert [e["id"] for e in h] == ["A", "B", "Z"] and h[0]["title"] == "a" and h[0]["tags"] == ["분양"]
     assert len(push.merge_history([{"id": str(i)} for i in range(150)], [], "t")) == 100
+
+
+def test_push_body_details():
+    from app import topic_push as push
+    it = {"id": "A", "sido": "서울", "tags": ["분양", "결과"], "title": "공고명", "apply_end": "2026-11-12",
+          "info": {"apply_start": "2026-11-10", "total_households": "120", "address": "서울 중구"},
+          "types": [{"exclusive_area": 59.9, "total": 60}, {"exclusive_area": 84.5, "total": 60}]}
+    n = push.message_for(it, "2026-11-08")["message"]["notification"]
+    assert n["title"] == "🔔 서울 분양 새 공고"
+    assert n["body"].splitlines() == ["공고명", "📅 접수 11/10~11/12 (D-4)", "🏠 전용 60·84㎡ · 총 120세대", "📍 서울 중구"]
+    assert push.body_for({"title": "t"}) == "t"

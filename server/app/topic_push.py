@@ -28,13 +28,48 @@ def condition_for(item: dict) -> str:
     return " || ".join(f"'{t}' in topics" for t in topics_for(item)[:5])
 
 
-def message_for(item: dict) -> dict:
-    where = f"{item['sido']} · " if item.get("sido") else ""
+def _md(iso: str | None) -> str:
+    return f"{int(iso[5:7])}/{int(iso[8:10])}" if iso and len(iso) >= 10 else ""
+
+
+def body_for(item: dict, today_iso: str | None = None) -> str:
+    """공고명 + 접수 기간(남은 일수) + 전용면적·세대수 + 위치. 있는 정보만 줄로 붙인다."""
+    from datetime import date
+
+    info = item.get("info") or {}
+    lines = [item.get("title", "")]
+    start, end = info.get("apply_start") or info.get("rank1_start"), item.get("apply_end")
+    if end:
+        span = f"{_md(start)}~{_md(end)}" if start and start != end else _md(end)
+        left = ""
+        try:
+            d = (date.fromisoformat(end[:10]) - date.fromisoformat((today_iso or date.today().isoformat())[:10])).days
+            left = " (오늘 마감)" if d == 0 else f" (D-{d})" if d > 0 else ""
+        except ValueError:
+            pass
+        lines.append(f"📅 접수 {span}{left}")
+    facts = []
+    areas = sorted({round(t["exclusive_area"]) for t in item.get("types") or [] if t.get("exclusive_area")})
+    if areas:
+        facts.append("전용 " + "·".join(str(a) for a in areas[:4]) + "㎡")
+    total = info.get("total_households") or sum(t.get("total") or 0 for t in item.get("types") or [])
+    if total and str(total) != "0":
+        facts.append(f"총 {total}세대")
+    if facts:
+        lines.append("🏠 " + " · ".join(facts))
+    place = info.get("address") or " ".join(x for x in (item.get("sido"), item.get("dong")) if x)
+    if place:
+        lines.append(f"📍 {place}")
+    return "\n".join(lines)
+
+
+def message_for(item: dict, today_iso: str | None = None) -> dict:
+    tags = "/".join(t for t in item.get("tags") or [] if t in CATS) or "청약"
+    where = f"{item['sido']} " if item.get("sido") else ""
     return {
         "message": {
             "condition": condition_for(item),
-            "notification": {"title": f"새 공고 · {where}{'/'.join(t for t in item.get('tags') or [] if t != '기타') or '청약'}",
-                             "body": item.get("title", "")},
+            "notification": {"title": f"🔔 {where}{tags} 새 공고", "body": body_for(item, today_iso)},
             "data": {"id": str(item.get("id", "")), "url": item.get("url", "")},
             "android": {"priority": "HIGH"},
         }
@@ -66,7 +101,7 @@ def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: s
     url = f"https://fcm.googleapis.com/v1/projects/{info['project_id']}/messages:send"
     sent: list[dict] = []
     for it in todo:
-        r = requests.post(url, json=message_for(it), headers={"Authorization": f"Bearer {tok}"}, timeout=20)
+        r = requests.post(url, json=message_for(it, today_iso), headers={"Authorization": f"Bearer {tok}"}, timeout=20)
         if r.ok:
             sent.append(it)
         else:
