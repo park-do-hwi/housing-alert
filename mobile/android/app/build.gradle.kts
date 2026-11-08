@@ -1,3 +1,12 @@
+import java.util.Properties
+
+val keyProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+// 스토어용 업로드 키가 있으면 그걸로 서명한다. HOUSING_DEBUG_SIGN=1 이면 허브 배포용으로 디버그 키를 쓴다.
+val useUploadKey = keyProps.containsKey("storeFile") && System.getenv("HOUSING_DEBUG_SIGN") != "1"
+
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
@@ -30,11 +39,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (useUploadKey) {
+            create("upload") {
+                storeFile = file(keyProps["storeFile"] as String)
+                storePassword = keyProps["storePassword"] as String
+                keyAlias = keyProps["keyAlias"] as String
+                keyPassword = keyProps["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (useUploadKey) signingConfigs.getByName("upload") else signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
