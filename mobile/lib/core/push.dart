@@ -1,15 +1,76 @@
-/// 푸시 알림 연동 자리.
-///
-/// 아직 Firebase 프로젝트가 없어서 비어 있다. 연결할 때:
-///  1. Firebase 콘솔에서 Android 앱(kr.taskcore.housing_alert) 등록 → google-services.json 을 android/app 에 둔다.
-///  2. `flutter pub add firebase_core firebase_messaging`, `flutterfire configure`
-///  3. 아래 [init] 에서 관심 조건(지역·유형)에 해당하는 FCM 주제(topic)를 구독한다.
-///     (서버·기기 등록 없이, 수집기가 meta.json 의 new 목록을 주제로 발송한다.)
+import 'dart:io';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'config.dart';
+import 'models.dart';
+
+/// 푸시 알림(FCM 주제 구독). 서버·기기 등록 없이, 관심 지역·유형에 해당하는 주제만 구독한다.
+/// 주제 이름 규칙은 server/app/topic_push.py 와 같다: n_<시·도 번호>_<유형 번호>, 못 찾으면 x.
 abstract class PushService {
   Future<void> init();
+  Future<void> sync(Subscription s);
 }
 
 class NoopPushService implements PushService {
   @override
   Future<void> init() async {}
+  @override
+  Future<void> sync(Subscription s) async {}
+}
+
+/// 구독 조건 → 주제 집합. 빈 목록은 "전체"(알 수 없는 값 x 포함).
+Set<String> topicsFor(Subscription s) {
+  final sidos = s.sido.isEmpty
+      ? [for (var i = 0; i < sidoList.length; i++) '$i', 'x']
+      : [
+          for (final v in s.sido)
+            if (sidoList.contains(v)) '${sidoList.indexOf(v)}',
+        ];
+  final cats = s.categories.isEmpty
+      ? [for (var i = 0; i < categoryList.length; i++) '$i', 'x']
+      : [
+          for (final v in s.categories)
+            if (categoryList.contains(v)) '${categoryList.indexOf(v)}',
+        ];
+  return {
+    for (final a in sidos)
+      for (final b in cats) 'n_${a}_$b',
+  };
+}
+
+class FcmPushService implements PushService {
+  FcmPushService(this._prefs);
+  final SharedPreferences _prefs;
+  bool _ready = false;
+  static const _key = 'fcm_topics';
+
+  @override
+  Future<void> init() async {
+    if (!Platform.isAndroid) return; // iOS 는 Firebase iOS 앱을 등록한 뒤에 켠다
+    try {
+      await Firebase.initializeApp();
+      await FirebaseMessaging.instance.requestPermission();
+      _ready = true;
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> sync(Subscription s) async {
+    if (!_ready) return;
+    final want = topicsFor(s);
+    final have = (_prefs.getStringList(_key) ?? const <String>[]).toSet();
+    try {
+      final m = FirebaseMessaging.instance;
+      for (final t in have.difference(want)) {
+        await m.unsubscribeFromTopic(t);
+      }
+      for (final t in want.difference(have)) {
+        await m.subscribeToTopic(t);
+      }
+      await _prefs.setStringList(_key, want.toList());
+    } catch (_) {}
+  }
 }

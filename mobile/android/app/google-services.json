@@ -1,0 +1,19 @@
+{
+  "project_info": {
+    "project_number": "307065031268",
+    "project_id": "housing-alert-kr",
+    "storage_bucket": "housing-alert-kr.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:307065031268:android:157bbced684684dbe92d71",
+        "android_client_info": { "package_name": "kr.taskcore.housing_alert" }
+      },
+      "oauth_client": [],
+      "api_key": [ { "current_key": "AIzaSyDrEnmo2HVMi-EBhPTlOzxsUn_ciUly9Qo" } ],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}

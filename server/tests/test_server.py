@@ -535,3 +535,14 @@ def test_attach_parse_table_supply_type_header():
             ["46A1-", "일반", "13", "", "4694.", "1000.", "500.", "6194."]]
     (o,) = parse_table(rows)
     assert o["type"] == "46A1" and o["total"] == 13 and o["exclusive_area"] == 46.94
+
+
+def test_push_topics_and_message():
+    from app import topic_push as push
+    it = {"id": "LH:1", "sido": "경기", "tags": ["임대", "무순위"], "title": "공고", "url": "u"}
+    assert push.topics_for(it) == ["n_1_3", "n_1_1"]
+    assert push.condition_for(it) == "'n_1_3' in topics || 'n_1_1' in topics"
+    assert push.topics_for({"tags": ["기타"]}) == ["n_x_x"]
+    m = push.message_for(it)["message"]
+    assert m["data"]["id"] == "LH:1" and "경기" in m["notification"]["title"]
+    assert push.notify([it], ["LH:1"], "2026-11-08", raw_account="") == 0
