@@ -29,6 +29,7 @@ RETAIN_DAYS = 30        # 접수 마감 후 목록에 남기는 기간
 TYPES_PER_RUN = 150     # 한 번 실행에서 주택형을 새로 가져올 최대 공고 수
 TYPES_SKIP_AFTER = 3    # 마감 후 이 기간이 지난 공고는 주택형을 새로 안 가져옴
 REF_KEYS = ("op", "manage_no", "pblanc_no")
+ATTACH_VER = 2          # 공고문 표 읽기 규칙을 고치면 올린다(이전에 못 읽은 공고도 다시 시도)
 ATTACH_PER_RUN = 30     # 한 번 실행에서 공고문 PDF 표를 새로 읽을 최대 공고 수
 FILES_PER_RUN = 80      # 한 번 실행에서 공고문 파일을 새로 조회할 최대 공고 수
 GEO_PER_RUN = 80        # 한 번 실행에서 좌표를 새로 조회할 최대 공고 수
@@ -130,7 +131,7 @@ def build(previous: list[dict], collectors: dict, fetch_types, today: date | Non
                 it["info"]["files"] = old["info"]["files"]
             if "fchk" in old:
                 it["fchk"] = old["fchk"]
-            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "dong", "mkt", "tchk"):
+            for k in ("geo", "gchk", "photo", "photo_hi", "pchk", "plan", "plan_hi", "plans", "pv", "plchk", "plv", "vids", "vchk", "nws", "nchk", "sgg", "dong", "mkt", "tchk", "tver"):
                 if k in old:
                     it[k] = old[k]
             if _hash(old) != _hash(it):
@@ -206,7 +207,7 @@ def _fill_attach_types(merged: dict, extract, today: date) -> None:
         if end and date.fromisoformat(end) < today:
             continue
         chk = it.get("tchk")
-        if chk and (today - date.fromisoformat(chk)).days < 7:
+        if chk and it.get("tver") == ATTACH_VER and (today - date.fromisoformat(chk)).days < 7:
             continue
         budget -= 1
         try:
@@ -215,6 +216,7 @@ def _fill_attach_types(merged: dict, extract, today: date) -> None:
             log.warning("attach types failed: %s", it["id"])
             types = []
         it["tchk"] = today.isoformat()
+        it["tver"] = ATTACH_VER
         if types:
             it["types"] = types
 
