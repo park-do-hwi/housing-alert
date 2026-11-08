@@ -49,7 +49,7 @@ class PlaceMap extends StatelessWidget {
                 onTap: (_, _) => _openExternal(),
               ),
               children: [
-                TileLayer(urlTemplate: _tiles, userAgentPackageName: _userAgent, retinaMode: RetinaMode.isHighDensity(context)),
+                TileLayer(urlTemplate: _tiles, userAgentPackageName: _userAgent),
                 MarkerLayer(markers: [
                   Marker(
                     point: center,
