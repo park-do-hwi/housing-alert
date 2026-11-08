@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>청약레이더 개인정보처리방침</title>
+<style>
+  body{font-family:-apple-system,"Noto Sans KR",sans-serif;line-height:1.7;max-width:720px;margin:0 auto;padding:24px 16px;color:#1f2937}
+  h1{font-size:1.5rem} h2{font-size:1.1rem;margin-top:2rem} li{margin:.3rem 0}
+  .d{color:#6b7280;font-size:.9rem}
+  @media (prefers-color-scheme:dark){body{background:#111827;color:#e5e7eb}.d{color:#9ca3af}a{color:#93c5fd}}
+</style>
+</head>
+<body>
+<h1>청약레이더 개인정보처리방침</h1>
+<p class="d">시행일: 2026년 11월 9일</p>
+
+<p>청약레이더(이하 "앱")는 이용자의 개인정보를 최소한으로 다룹니다. 회원가입과 로그인이 없고, 이름·연락처·이메일·위치정보를 수집하지 않으며, 별도의 앱 서버로 개인정보를 보내지 않습니다.</p>
+
+<h2>1. 앱이 다루는 정보</h2>
+<ul>
+  <li><b>관심 조건과 저장한 공고</b>: 관심 지역·유형, 저장한 공고, 비교 목록은 이용자 기기 안의 파일에만 저장됩니다. 운영자에게 전송되지 않으며, 앱을 삭제하면 함께 지워집니다.</li>
+  <li><b>푸시 알림</b>: 새 공고 알림을 위해 Google Firebase Cloud Messaging(FCM)을 사용합니다. 앱은 관심 지역·유형에 해당하는 알림 주제(topic)를 구독하며, 이 과정에서 Firebase가 기기 설치 식별자와 알림 토큰을 처리합니다. 운영자는 이 식별자를 별도로 저장하거나 이용자를 식별하는 데 쓰지 않습니다. 알림 주제 구독은 설정에서 관심 조건을 바꾸면 갱신되며, 앱을 삭제하면 더 이상 알림이 전달되지 않습니다.</li>
+  <li><b>지도</b>: 공고의 위치를 보여 주기 위해 카카오맵 SDK를 사용합니다. 이용자의 현재 위치는 사용하지 않습니다. 지도 표시 과정에서 카카오가 서비스 제공에 필요한 통신 정보를 처리할 수 있습니다.</li>
+</ul>
+
+<h2>2. 이용 목적</h2>
+<p>공고 알림 전달, 관심 조건에 맞는 공고 표시, 공고 위치 지도 표시.</p>
+
+<h2>3. 보관과 삭제</h2>
+<p>기기에 저장된 정보는 앱의 설정에서 내보내기·가져오기를 할 수 있고, 앱을 삭제하거나 앱 데이터를 지우면 삭제됩니다. 알림을 받고 싶지 않으면 기기의 설정에서 앱 알림을 끄거나 관심 조건을 비우면 됩니다.</p>
+
+<h2>4. 제3자 서비스</h2>
+<ul>
+  <li>Google Firebase Cloud Messaging: 푸시 알림 전달 (<a href="https://policies.google.com/privacy">Google 개인정보처리방침</a>)</li>
+  <li>카카오맵: 지도 표시 (<a href="https://www.kakao.com/policy/privacy">카카오 개인정보처리방침</a>)</li>
+  <li>GitHub Pages: 공고 데이터(JSON) 전달. 앱이 데이터를 내려받을 때 일반적인 접속 기록(IP 주소 등)이 호스팅 사업자에게 남을 수 있습니다.</li>
+</ul>
+
+<h2>5. 공고 정보의 출처와 면책</h2>
+<p>앱의 공고 정보는 LH, SH, GH, 한국부동산원(청약홈) 등 공공기관이 공개한 자료와 국토교통부 공개 자료를 모아 보여 주는 참고용 정보입니다. 앱은 해당 기관이 운영하거나 보증하는 공식 앱이 아닙니다. 일정·분양가·공급 조건은 변경되거나 수집 시점에 따라 다를 수 있으므로, 청약 신청과 계약 전에 반드시 각 기관의 원문 공고를 확인하세요.</p>
+
+<h2>6. 아동</h2>
+<p>앱은 만 14세 미만 아동의 개인정보를 별도로 수집하지 않습니다.</p>
+
+<h2>7. 문의</h2>
+<p>개인정보 관련 문의는 GitHub 저장소의 이슈로 남겨 주세요: <a href="https://github.com/park-do-hwi/housing-alert/issues">github.com/park-do-hwi/housing-alert/issues</a></p>
+
+<h2>8. 변경</h2>
+<p>이 방침이 바뀌면 이 페이지에 시행일과 함께 게시합니다.</p>
+</body>
+</html>

@@ -49,13 +49,34 @@ class FcmPushService implements PushService {
   final void Function(String id, String url)? onOpen;
   bool _ready = false;
   static const _key = 'fcm_topics';
+  static const _askedKey = 'push_asked';
+
+  /// 알림 권한을 아직 안 물어봤고 기기도 허용 여부를 정하지 않았으면 true (Android 13+ 첫 실행).
+  Future<bool> needsAsk() async {
+    if (!_ready || (_prefs.getBool(_askedKey) ?? false)) return false;
+    try {
+      final st = await FirebaseMessaging.instance.getNotificationSettings();
+      return st.authorizationStatus == AuthorizationStatus.notDetermined;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 설명 화면에서 사용자가 '받기'를 눌렀을 때 시스템 권한창을 띄운다. 한 번만 묻는다.
+  Future<void> requestPermission() async {
+    await _prefs.setBool(_askedKey, true);
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+    } catch (_) {}
+  }
+
+  Future<void> markAsked() => _prefs.setBool(_askedKey, true);
 
   @override
   Future<void> init() async {
     if (!Platform.isAndroid) return; // iOS 는 Firebase iOS 앱을 등록한 뒤에 켠다
     try {
       await Firebase.initializeApp();
-      await FirebaseMessaging.instance.requestPermission();
       _ready = true;
       FirebaseMessaging.onMessageOpenedApp.listen(_opened);
       final first = await FirebaseMessaging.instance.getInitialMessage();

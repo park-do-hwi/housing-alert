@@ -72,6 +72,9 @@ jobs:
           PUSH_TEST: ${{ inputs.push_test && '1' || '' }}
         run: python -m app.export --out public
 
+      - name: 개인정보처리방침 페이지 포함
+        run: cp docs/privacy.html server/public/privacy.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
