@@ -574,7 +574,10 @@ def main(argv=None):
         try:
             from . import topic_push as push
 
-            print(f"푸시 {push.notify(items, meta['new'], date.today().isoformat())}건")
+            ids = list(meta["new"])
+            if os.environ.get("PUSH_TEST"):  # 수동 시험: 접수 중인 공고 1건
+                ids = [i["id"] for i in items if (i.get("apply_end") or "") >= date.today().isoformat()][:1]
+            print(f"푸시 {push.notify(items, ids, date.today().isoformat())}건")
         except Exception as e:  # 푸시가 실패해도 공고 수집은 그대로
             print("푸시 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '

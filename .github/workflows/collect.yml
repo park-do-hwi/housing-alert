@@ -14,6 +14,11 @@ on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_dispatch:
+    inputs:
+      push_test:
+        description: '푸시 시험 발송(접수 중인 공고 1건을 구독자에게 보냅니다)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,6 +68,7 @@ jobs:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
           KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+          PUSH_TEST: ${{ inputs.push_test && '1' || '' }}
         run: python -m app.export --out public
 
       - uses: actions/configure-pages@v5
