@@ -58,11 +58,11 @@ class _PlaceMapState extends State<PlaceMap> {
         children: [
           SizedBox(
             height: 240,
-            child: kakaoJsKey.isNotEmpty && !_kakaoFailed
-                ? KakaoMap(
+            child: kakaoNativeKey.isNotEmpty && !_kakaoFailed
+                ? KakaoNativeMap(
                     lat: g.lat,
                     lng: g.lng,
-                    level: g.approx ? 6 : 3,
+                    zoom: g.approx ? 13 : 16,
                     onTap: _openExternal,
                     onFail: () =>
                         mounted ? setState(() => _kakaoFailed = true) : null,

@@ -1,67 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 
-/// 카카오맵 자바스크립트 SDK 를 웹뷰로 띄운다. 키는 빌드할 때 `--dart-define=KAKAO_JS_KEY=...` 로 준다.
-/// 키가 없거나 SDK 가 열리지 않으면 [onFail] 로 알려, 호출한 쪽이 다른 지도로 바꾼다.
-const kakaoJsKey = String.fromEnvironment('KAKAO_JS_KEY');
+/// 카카오맵 네이티브 SDK 지도. 키는 빌드할 때 `--dart-define=KAKAO_NATIVE_KEY=...` 로 준다.
+/// 키가 없거나 지도를 못 열면 [onFail] 로 알려, 호출한 쪽이 다른 지도로 바꾼다.
+const kakaoNativeKey = String.fromEnvironment('KAKAO_NATIVE_KEY');
 
-class KakaoMap extends StatefulWidget {
-  const KakaoMap({
+Future<void>? _init;
+Future<void> _ensureInit() =>
+    _init ??= KakaoMapSdk.instance.initialize(kakaoNativeKey);
+
+class KakaoNativeMap extends StatefulWidget {
+  const KakaoNativeMap({
     super.key,
     required this.lat,
     required this.lng,
-    required this.level,
+    required this.zoom,
     required this.onTap,
     required this.onFail,
   });
   final double lat;
   final double lng;
-  final int level; // 카카오 지도 레벨(작을수록 확대)
+  final int zoom; // 클수록 확대
   final VoidCallback onTap;
   final VoidCallback onFail;
 
   @override
-  State<KakaoMap> createState() => _KakaoMapState();
+  State<KakaoNativeMap> createState() => _KakaoNativeMapState();
 }
 
-class _KakaoMapState extends State<KakaoMap> {
-  late final WebViewController _c;
-
-  String get _html =>
-      '''
-<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<style>html,body,#m{margin:0;width:100%;height:100%;overflow:hidden}</style></head>
-<body><div id="m"></div>
-<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=$kakaoJsKey&autoload=false"
-  onerror="Status.postMessage('fail')"></script>
-<script>
-if (typeof kakao === 'undefined') { Status.postMessage('fail'); }
-else kakao.maps.load(function () {
-  var p = new kakao.maps.LatLng(${widget.lat}, ${widget.lng});
-  var map = new kakao.maps.Map(document.getElementById('m'), {center: p, level: ${widget.level}, draggable: false, scrollwheel: false, disableDoubleClickZoom: true});
-  new kakao.maps.Marker({position: p, map: map});
-  kakao.maps.event.addListener(map, 'click', function () { Tap.postMessage('tap'); });
-  Status.postMessage('ok');
-});
-setTimeout(function () { if (typeof kakao === 'undefined' || !kakao.maps || !kakao.maps.Map) Status.postMessage('fail'); }, 8000);
-</script></body></html>''';
+class _KakaoNativeMapState extends State<KakaoNativeMap> {
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _c = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel('Tap', onMessageReceived: (_) => widget.onTap())
-      ..addJavaScriptChannel(
-        'Status',
-        onMessageReceived: (m) {
-          if (m.message == 'fail') widget.onFail();
-        },
-      )
-      ..loadHtmlString(_html, baseUrl: 'http://localhost');
+    _ensureInit()
+        .then((_) {
+          if (mounted) setState(() => _ready = true);
+        })
+        .catchError((Object _) {
+          if (mounted) widget.onFail();
+        });
+  }
+
+  Future<void> _onReady(KakaoMapController c) async {
+    try {
+      final pos = LatLng(widget.lat, widget.lng);
+      final pin = await KImage.fromWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Icon(Icons.location_on, color: Color(0xFFE53935), size: 48),
+        ),
+        const Size(48, 48),
+        context: mounted ? context : null,
+      );
+      await c.labelLayer.addPoi(pos, style: PoiStyle(icon: pin));
+      for (final g in GestureType.values) {
+        await c.setGesture(g, false);
+      }
+    } catch (_) {}
   }
 
   @override
-  Widget build(BuildContext context) => WebViewWidget(controller: _c);
+  Widget build(BuildContext context) {
+    if (!_ready) return const SizedBox.shrink();
+    return KakaoMap(
+      option: KakaoMapOption(
+        position: LatLng(widget.lat, widget.lng),
+        zoomLevel: widget.zoom,
+        mapType: MapType.normal,
+      ),
+      onMapReady: _onReady,
+      onMapClick: (_, _) => widget.onTap(),
+      onMapError: (_) => widget.onFail(),
+    );
+  }
 }
