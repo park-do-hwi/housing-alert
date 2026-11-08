@@ -100,19 +100,13 @@ class DetailScreen extends ConsumerWidget {
         _Highlights(notice: notice),
         const SizedBox(height: Gap.sm),
         _ApplyButton(notice: notice, open: (u) => _open(context, u)),
-        if (notice.geo != null) ...[const SizedBox(height: Gap.md), PlaceMap(notice: notice)],
-        if ((notice.mkt['near'] as List?)?.isNotEmpty == true) ...[const SizedBox(height: Gap.md), _MarketInfo(notice: notice)],
-        if (notice.plan != null || notice.plans.isNotEmpty) ...[const SizedBox(height: Gap.md), _PlanImage(notice: notice)],
+        if (notice.geo != null) ...[_Block(Icons.map_outlined, '위치', PlaceMap(notice: notice))],
+        if ((notice.mkt['near'] as List?)?.isNotEmpty == true) ...[_Block(Icons.sell_outlined, '주변 단지 실거래 (참고)', _MarketInfo(notice: notice))],
+        if (notice.plan != null || notice.plans.isNotEmpty) ...[_Block(Icons.grid_view_outlined, '평면도 (참고)', _PlanImage(notice: notice))],
         if (notice.vids.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: Gap.md),
-            child: KeyedSubtree(key: GlobalObjectKey(notice.vids), child: _Videos(videos: notice.vids)),
-          ),
+          KeyedSubtree(key: GlobalObjectKey(notice.vids), child: _Block(Icons.play_circle_outline, '관련 영상', _Videos(videos: notice.vids))),
         if (notice.nws.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: Gap.md),
-            child: KeyedSubtree(key: GlobalObjectKey(notice.nws), child: _RelatedNews(items: notice.nws)),
-          ),
+          KeyedSubtree(key: GlobalObjectKey(notice.nws), child: _Block(Icons.article_outlined, '관련 뉴스', _RelatedNews(items: notice.nws))),
         ..._schedule(context, now),
         ..._types(context),
         ..._files(context),
@@ -153,10 +147,7 @@ class DetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _sectionTitle(BuildContext context, String s) => Padding(
-        padding: const EdgeInsets.only(top: Gap.section, bottom: Gap.sm),
-        child: Text(s, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w500)),
-      );
+  Widget _sectionTitle(BuildContext context, String s, [IconData icon = Icons.info_outline]) => _head(context, icon, s);
 
   /// 일정: 접수 시작·마감·당첨자 발표·계약 시작 중 실제 값이 있는 것만.
   List<Widget> _schedule(BuildContext context, DateTime now) {
@@ -173,7 +164,7 @@ class DetailScreen extends ConsumerWidget {
     ];
     if (events.isEmpty) return const [];
     return [
-      _sectionTitle(context, '청약 일정'),
+      _sectionTitle(context, '청약 일정', Icons.event_outlined),
       ScheduleTimeline(events: events, now: now),
     ];
   }
@@ -182,7 +173,7 @@ class DetailScreen extends ConsumerWidget {
     final types = notice.types;
     if (types == null || types.isEmpty) return const [];
     return [
-      _sectionTitle(context, '주택형별 공급'),
+      _sectionTitle(context, '주택형별 공급', Icons.apartment_outlined),
       Card(
         margin: EdgeInsets.zero,
         child: ExpansionTile(
@@ -207,7 +198,7 @@ class DetailScreen extends ConsumerWidget {
     ];
     if (files.isEmpty) return const [];
     return [
-      _sectionTitle(context, '공고문 파일'),
+      _sectionTitle(context, '공고문 파일', Icons.folder_outlined),
       for (final f in files)
         Card(
           margin: const EdgeInsets.only(bottom: Gap.sm),
@@ -621,7 +612,6 @@ class _PlanImageState extends State<_PlanImage> {
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('평면도 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
       if (plans.length > 1 || plans.first.label.isNotEmpty) ...[
         const SizedBox(height: 6),
         Wrap(spacing: 6, children: [
@@ -679,8 +669,6 @@ class _MarketInfo extends StatelessWidget {
           child: Text(s, style: style, textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis),
         );
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('주변 단지 실거래 (참고)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-      const SizedBox(height: 6),
       Table(
         columnWidths: const {0: FlexColumnWidth(2.2), 1: FlexColumnWidth(1.1), 2: FlexColumnWidth(1.2), 3: FlexColumnWidth(0.9)},
         border: TableBorder(horizontalInside: BorderSide(color: theme.dividerColor)),
@@ -743,8 +731,6 @@ class _Videos extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('관련 영상', style: t.titleMedium),
-      const SizedBox(height: 4),
       Text('유튜브 검색 결과예요. 다른 단지 영상이 섞일 수 있어요.', style: t.bodySmall),
       const SizedBox(height: Gap.sm),
       SizedBox(
@@ -790,8 +776,6 @@ class _RelatedNews extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('관련 뉴스', style: t.titleMedium),
-      const SizedBox(height: Gap.sm),
       for (final n in items)
         InkWell(
           onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WebScreen(url: n.url, title: n.title))),
@@ -806,4 +790,36 @@ class _RelatedNews extends StatelessWidget {
         ),
     ]);
   }
+}
+
+
+/// 구역 제목: 위에 가는 선, 아이콘(강조색 원) + 굵은 제목. 상세의 모든 구역이 같은 모양으로 나뉜다.
+Widget _head(BuildContext context, IconData icon, String title) {
+  final cs = Theme.of(context).colorScheme;
+  return Padding(
+    padding: const EdgeInsets.only(top: Gap.section, bottom: Gap.md),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+      const SizedBox(height: Gap.lg),
+      Row(children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(color: cs.primaryContainer, shape: BoxShape.circle),
+          child: Icon(icon, size: 16, color: cs.onPrimaryContainer),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17, fontWeight: FontWeight.w700))),
+      ]),
+    ]),
+  );
+}
+
+class _Block extends StatelessWidget {
+  const _Block(this.icon, this.title, this.child);
+  final IconData icon;
+  final String title;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_head(context, icon, title), child]);
 }
