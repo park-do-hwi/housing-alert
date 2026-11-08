@@ -545,4 +545,13 @@ def test_push_topics_and_message():
     assert push.topics_for({"tags": ["기타"]}) == ["n_x_x"]
     m = push.message_for(it)["message"]
     assert m["data"]["id"] == "LH:1" and "경기" in m["notification"]["title"]
-    assert push.notify([it], ["LH:1"], "2026-11-08", raw_account="") == 0
+    assert push.notify([it], ["LH:1"], "2026-11-08", raw_account="") == []
+
+
+def test_push_history_merge():
+    from app import topic_push as push
+    a = {"id": "A", "title": "a", "sido": "서울", "tags": ["분양", "기타"], "url": "u"}
+    b = {"id": "B", "title": "b"}
+    h = push.merge_history([{"id": "A", "title": "old"}, {"id": "Z"}], [a, b], "t")
+    assert [e["id"] for e in h] == ["A", "B", "Z"] and h[0]["title"] == "a" and h[0]["tags"] == ["분양"]
+    assert len(push.merge_history([{"id": str(i)} for i in range(150)], [], "t")) == 100

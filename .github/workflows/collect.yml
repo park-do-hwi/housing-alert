@@ -61,6 +61,7 @@ jobs:
           REPO="${GITHUB_REPOSITORY#*/}"
           curl -fsS --max-time 30 "https://${OWNER}.github.io/${REPO}/notices.json" -o public/notices.json \
             || { echo "이전 결과 없음(처음 실행)"; rm -f public/notices.json; }
+          curl -fsS --max-time 30 "https://${OWNER}.github.io/${REPO}/pushes.json" -o public/pushes.json             || rm -f public/pushes.json
 
       - name: 공고 수집 → public/notices.json
         working-directory: server

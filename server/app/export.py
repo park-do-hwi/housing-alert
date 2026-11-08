@@ -570,6 +570,7 @@ def main(argv=None):
             print(f"공매 {len(au)}건")
         except Exception as e:  # 공매가 실패해도 공고 수집은 그대로
             print("공매 수집 실패:", e, file=sys.stderr)
+    sent: list[dict] = []
     if os.environ.get("FCM_SERVICE_ACCOUNT"):
         try:
             from . import topic_push as push
@@ -577,9 +578,20 @@ def main(argv=None):
             ids = list(meta["new"])
             if os.environ.get("PUSH_TEST"):  # 수동 시험: 접수 중인 공고 1건
                 ids = [i["id"] for i in items if (i.get("apply_end") or "") >= date.today().isoformat()][:1]
-            print(f"푸시 {push.notify(items, ids, date.today().isoformat())}건")
+            sent = push.notify(items, ids, date.today().isoformat())
+            print(f"푸시 {len(sent)}건")
         except Exception as e:  # 푸시가 실패해도 공고 수집은 그대로
             print("푸시 실패:", e, file=sys.stderr)
+    try:  # 알림 기록(pushes.json): 앱의 "알림 기록" 목록. 배포가 사이트를 통째로 바꾸므로 이전 기록을 이어서 쓴다.
+        from . import topic_push as push
+
+        pf = out / "pushes.json"
+        prev = json.loads(pf.read_text(encoding="utf-8")).get("items", []) if pf.exists() else []
+        hist = push.merge_history(prev, sent, meta["generated_at"])
+        if hist:
+            pf.write_text(json.dumps({"generated_at": meta["generated_at"], "items": hist}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    except Exception as e:
+        print("알림 기록 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '
           f'실패 소스 {meta["failed_sources"] or "없음"}) -> {out}')
 

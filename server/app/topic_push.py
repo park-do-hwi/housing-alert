@@ -51,23 +51,39 @@ def _token(info: dict) -> str:
     return cred.token
 
 
-def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: str | None = None) -> int:
+def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: str | None = None) -> list[dict]:
+    """보낸 공고 목록을 돌려준다."""
     raw = raw_account if raw_account is not None else os.environ.get("FCM_SERVICE_ACCOUNT", "")
     if not raw or not new_ids:
-        return 0
+        return []
     info = json.loads(raw)
     by_id = {i["id"]: i for i in items}
     todo = [by_id[i] for i in new_ids if i in by_id and (not by_id[i].get("apply_end") or by_id[i]["apply_end"] >= today_iso)]
     todo = todo[:MAX_PER_RUN]
     if not todo:
-        return 0
+        return []
     tok = _token(info)
     url = f"https://fcm.googleapis.com/v1/projects/{info['project_id']}/messages:send"
-    sent = 0
+    sent: list[dict] = []
     for it in todo:
         r = requests.post(url, json=message_for(it), headers={"Authorization": f"Bearer {tok}"}, timeout=20)
         if r.ok:
-            sent += 1
+            sent.append(it)
         else:
             log.warning("push failed %s: %s %s", it["id"], r.status_code, r.text[:200])
     return sent
+
+
+HISTORY_LIMIT = 100
+
+
+def history_entry(item: dict, at: str) -> dict:
+    return {"id": item.get("id", ""), "title": item.get("title", ""), "sido": item.get("sido", ""),
+            "tags": [t for t in item.get("tags") or [] if t != "기타"], "url": item.get("url", ""), "at": at}
+
+
+def merge_history(prev: list[dict], sent: list[dict], at: str) -> list[dict]:
+    """알림 기록(최근 것이 앞). 같은 공고는 한 번만 남기고 HISTORY_LIMIT 건까지."""
+    new = [history_entry(i, at) for i in sent]
+    seen = {e["id"] for e in new}
+    return (new + [e for e in prev if e.get("id") not in seen])[:HISTORY_LIMIT]

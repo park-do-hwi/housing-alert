@@ -1,6 +1,10 @@
 import 'auction_screen.dart';
+import 'push_history_screen.dart';
+
 import 'package:flutter/material.dart';
+
 import 'search_screen.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,97 +28,139 @@ class FeedScreen extends ConsumerWidget {
       floatingActionButton: const CompareFab(),
       appBar: AppBar(
         toolbarHeight: 64,
-        title: Row(children: [
-          Image.asset('assets/brand/logo.png', width: 38, height: 38, filterQuality: FilterQuality.high),
-          const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('청약레이더'),
-            Text('오늘·이번 주에 해야 할 청약',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          ]),
-        ]),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/brand/logo.png',
+              width: 38,
+              height: 38,
+              filterQuality: FilterQuality.high,
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('청약레이더'),
+                Text(
+                  '오늘·이번 주에 해야 할 청약',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         actions: [
+          IconButton(
+            tooltip: '알림 기록',
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PushHistoryScreen(),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: '공매',
             icon: const Icon(Icons.gavel_outlined),
             onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AuctionScreen())),
+              MaterialPageRoute<void>(builder: (_) => const AuctionScreen()),
+            ),
           ),
           IconButton(
             tooltip: '공고 검색',
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const SearchScreen())),
+              MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
+            ),
           ),
         ],
       ),
-      body: Column(children: [
-        SizedBox(
-          height: 48,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () async {
-                    final r = await showDialog<List<String?>>(
-                      context: context,
-                      builder: (c) => _SidoDialog(current: filter.sido, list: sidoList),
-                    );
-                    if (r != null) setFilter(r.first == null ? filter.copyWith(clearSido: true) : filter.copyWith(sido: r.first));
-                  },
-                  child: Chip(
-                    avatar: const Icon(Icons.place, size: 16),
-                    label: Text(filter.sido ?? '전국'),
-                    backgroundColor:
-                        filter.sido == null ? null : Theme.of(context).colorScheme.secondaryContainer,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  avatar: const Icon(Icons.favorite_border, size: 16),
-                  label: const Text('내 조건'),
-                  selected: filter.mineOnly,
-                  onSelected: (on) => setFilter(filter.copyWith(mineOnly: on)),
-                ),
-              ),
-              for (final c in categoryList)
+      body: Column(
+        children: [
+          SizedBox(
+            height: 48,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(c),
-                    selected: filter.category == c,
-                    onSelected: (on) => setFilter(
-                        on ? filter.copyWith(category: c) : filter.copyWith(clearCategory: true)),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final r = await showDialog<List<String?>>(
+                        context: context,
+                        builder: (c) =>
+                            _SidoDialog(current: filter.sido, list: sidoList),
+                      );
+                      if (r != null)
+                        setFilter(
+                          r.first == null
+                              ? filter.copyWith(clearSido: true)
+                              : filter.copyWith(sido: r.first),
+                        );
+                    },
+                    child: Chip(
+                      avatar: const Icon(Icons.place, size: 16),
+                      label: Text(filter.sido ?? '전국'),
+                      backgroundColor: filter.sido == null
+                          ? null
+                          : Theme.of(context).colorScheme.secondaryContainer,
+                    ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        if (data != null) _UpdatedBar(data.generatedAt, data.stale, notices.value?.length),
-        Expanded(
-          child: notices.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => ErrorRetry(error: e, onRetry: () => ref.invalidate(noticeDataProvider)),
-            data: (list) => RefreshIndicator(
-              onRefresh: () => ref.refresh(noticeDataProvider.future),
-              child: list.isEmpty
-                  ? ListView(children: const [
-                      SizedBox(height: 120),
-                      Center(child: Text('조건에 맞는 공고가 없어요')),
-                    ])
-                  : _GroupedList(list: list),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: const Icon(Icons.favorite_border, size: 16),
+                    label: const Text('내 조건'),
+                    selected: filter.mineOnly,
+                    onSelected: (on) =>
+                        setFilter(filter.copyWith(mineOnly: on)),
+                  ),
+                ),
+                for (final c in categoryList)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(c),
+                      selected: filter.category == c,
+                      onSelected: (on) => setFilter(
+                        on
+                            ? filter.copyWith(category: c)
+                            : filter.copyWith(clearCategory: true),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ),
-      ]),
+          if (data != null)
+            _UpdatedBar(data.generatedAt, data.stale, notices.value?.length),
+          Expanded(
+            child: notices.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => ErrorRetry(
+                error: e,
+                onRetry: () => ref.invalidate(noticeDataProvider),
+              ),
+              data: (list) => RefreshIndicator(
+                onRefresh: () => ref.refresh(noticeDataProvider.future),
+                child: list.isEmpty
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 120),
+                          Center(child: Text('조건에 맞는 공고가 없어요')),
+                        ],
+                      )
+                    : _GroupedList(list: list),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -135,11 +181,16 @@ class _GroupedListState extends State<_GroupedList> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final counts = {for (final t in FeedTab.values) t: widget.list.where((n) => t.matches(n, now)).length};
+    final counts = {
+      for (final t in FeedTab.values)
+        t: widget.list.where((n) => t.matches(n, now)).length,
+    };
     final rows = <Object>[counts];
     if (tab != null) {
-      final items = groupNotices(widget.list.where((n) => tab!.matches(n, now)).toList(), now)
-          .expand((g) => g.$2);
+      final items = groupNotices(
+        widget.list.where((n) => tab!.matches(n, now)).toList(),
+        now,
+      ).expand((g) => g.$2);
       final list = items.toList();
       rows.addAll(list);
       if (list.isEmpty) rows.add(tab!); // 고른 묶음에 공고가 없으면 안내 문구를 보여 준다
@@ -156,10 +207,18 @@ class _GroupedListState extends State<_GroupedList> {
       itemBuilder: (_, i) {
         final r = rows[i];
         if (r is Notice) {
-          return NoticeTile(notice: r, now: now, onTap: () => context.push('/notice', extra: r));
+          return NoticeTile(
+            notice: r,
+            now: now,
+            onTap: () => context.push('/notice', extra: r),
+          );
         }
         if (r is Map<FeedTab, int>) {
-          return FeedTabBar(counts: r, selected: tab, onSelect: (t) => setState(() => tab = t));
+          return FeedTabBar(
+            counts: r,
+            selected: tab,
+            onSelect: (t) => setState(() => tab = t),
+          );
         }
         if (r is FeedTab) return _EmptyTab(tab: r);
         final (phase, count) = r as (Phase, int);
@@ -169,7 +228,9 @@ class _GroupedListState extends State<_GroupedList> {
           count: count,
           collapsible: closed,
           collapsed: !closedOpen,
-          onToggle: closed ? () => setState(() => closedOpen = !closedOpen) : null,
+          onToggle: closed
+              ? () => setState(() => closedOpen = !closedOpen)
+              : null,
         );
       },
     );
@@ -195,14 +256,25 @@ class _EmptyTab extends StatelessWidget {
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.5,
       child: Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.inbox_outlined, size: 48, color: theme.colorScheme.outline),
-        const SizedBox(height: 12),
-        Text(msg, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 4),
-        Text('위 숫자를 다시 누르면 전체 공고로 돌아가요.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(msg, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              '위 숫자를 다시 누르면 전체 공고로 돌아가요.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -220,19 +292,20 @@ class _UpdatedBar extends StatelessWidget {
     final when = t == null
         ? ''
         : '${t.month.toString().padLeft(2, '0')}.${t.day.toString().padLeft(2, '0')} '
-            '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} 기준';
+              '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} 기준';
     return Container(
       width: double.infinity,
       color: stale ? Theme.of(context).colorScheme.errorContainer : null,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Text(
-        stale ? '오프라인이에요. 마지막으로 받은 공고를 보여드려요 ($when)' : '$when${count == null ? '' : ' · $count건'}',
+        stale
+            ? '오프라인이에요. 마지막으로 받은 공고를 보여드려요 ($when)'
+            : '$when${count == null ? '' : ' · $count건'}',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
 }
-
 
 /// 지역 선택: 목록 대신 표(격자) 형태의 팝업.
 class _SidoDialog extends StatelessWidget {
@@ -256,8 +329,13 @@ class _SidoDialog extends StatelessWidget {
             color: on ? cs.primary : cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(v ?? '전국',
-              style: TextStyle(fontWeight: on ? FontWeight.w700 : FontWeight.w400, color: on ? cs.onPrimary : cs.onSurface)),
+          child: Text(
+            v ?? '전국',
+            style: TextStyle(
+              fontWeight: on ? FontWeight.w700 : FontWeight.w400,
+              color: on ? cs.onPrimary : cs.onSurface,
+            ),
+          ),
         ),
       );
     }
@@ -266,26 +344,34 @@ class _SidoDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('지역 선택', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Flexible(
-            child: SingleChildScrollView(
-              child: Table(
-                children: [
-                  for (var i = 0; i < all.length; i += 3)
-                    TableRow(children: [
-                      for (var j = i; j < i + 3; j++)
-                        Padding(
-                          padding: const EdgeInsets.all(3),
-                          child: j < all.length ? cell(all[j]) : const SizedBox.shrink(),
-                        ),
-                    ]),
-                ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('지역 선택', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Table(
+                  children: [
+                    for (var i = 0; i < all.length; i += 3)
+                      TableRow(
+                        children: [
+                          for (var j = i; j < i + 3; j++)
+                            Padding(
+                              padding: const EdgeInsets.all(3),
+                              child: j < all.length
+                                  ? cell(all[j])
+                                  : const SizedBox.shrink(),
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
