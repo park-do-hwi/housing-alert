@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 /// 앱을 켤 때 잠깐 보이는 시작 화면. 일정 시간 뒤 부드럽게 사라지고, 사라진 뒤에는 아무것도 그리지 않는다.
 /// 이미지는 휴대폰 화면 비율(9:19.5)로 만든 그림이라 화면을 꽉 채우고(cover), 건물이 잘리지 않게 가운데 기준으로 맞춘다.
 class SplashOverlay extends StatefulWidget {
-  const SplashOverlay({super.key, required this.child, this.hold = const Duration(milliseconds: 1500)});
+  const SplashOverlay({super.key, required this.child, required this.dark, this.hold = const Duration(milliseconds: 1500)});
   final Widget child;
+
+  /// 앱 테마가 어두운지(앱 안의 테마 설정을 따른다. 폰 시스템 설정만 보지 않는다).
+  final bool dark;
   final Duration hold;
 
   @override
@@ -33,7 +36,7 @@ class _SplashOverlayState extends State<SplashOverlay> {
   @override
   Widget build(BuildContext context) {
     if (_gone) return widget.child;
-    final dark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final dark = widget.dark;
     return Stack(
       fit: StackFit.expand,
       children: [

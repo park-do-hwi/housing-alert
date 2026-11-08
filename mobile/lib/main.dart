@@ -111,7 +111,14 @@ class _HousingAppState extends ConsumerState<HousingApp> {
           data: mq.copyWith(
             textScaler: TextScaler.linear(mq.textScaler.scale(1) * 0.92),
           ),
-          child: SplashOverlay(child: child!),
+          child: SplashOverlay(
+            dark: switch (ref.read(themeModeProvider)) {
+              ThemeMode.dark => true,
+              ThemeMode.light => false,
+              ThemeMode.system => mq.platformBrightness == Brightness.dark,
+            },
+            child: child!,
+          ),
         );
       },
       locale: const Locale('ko', 'KR'),
