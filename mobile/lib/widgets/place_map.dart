@@ -44,12 +44,12 @@ class PlaceMap extends StatelessWidget {
             FlutterMap(
               options: MapOptions(
                 initialCenter: center,
-                initialZoom: g.approx ? 14 : 16,
+                initialZoom: g.approx ? 13.4 : 15.4,
                 interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                 onTap: (_, _) => _openExternal(),
               ),
               children: [
-                TileLayer(urlTemplate: _tiles, userAgentPackageName: _userAgent),
+                TileLayer(urlTemplate: _tiles, userAgentPackageName: _userAgent, tileDimension: 384),
                 MarkerLayer(markers: [
                   Marker(
                     point: center,
