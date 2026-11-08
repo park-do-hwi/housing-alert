@@ -15,13 +15,11 @@ class KakaoNativeMap extends StatefulWidget {
     required this.lat,
     required this.lng,
     required this.zoom,
-    required this.onTap,
     required this.onFail,
   });
   final double lat;
   final double lng;
   final int zoom; // 클수록 확대
-  final VoidCallback onTap;
   final VoidCallback onFail;
 
   @override
@@ -55,9 +53,6 @@ class _KakaoNativeMapState extends State<KakaoNativeMap> {
         context: mounted ? context : null,
       );
       await c.labelLayer.addPoi(pos, style: PoiStyle(icon: pin));
-      for (final g in GestureType.values) {
-        await c.setGesture(g, false);
-      }
     } catch (_) {}
   }
 
@@ -70,8 +65,9 @@ class _KakaoNativeMapState extends State<KakaoNativeMap> {
         zoomLevel: widget.zoom,
         mapType: MapType.normal,
       ),
+      // 화면이 위아래로 스크롤되는 곳이라, 지도를 만지면 지도가 먼저 움직이게 한다(확대·축소·이동).
+      forceGesture: true,
       onMapReady: _onReady,
-      onMapClick: (_, _) => widget.onTap(),
       onMapError: (_) => widget.onFail(),
     );
   }
