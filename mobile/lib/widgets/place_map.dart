@@ -40,8 +40,9 @@ Future<void> openInKakaoMap(Notice notice) async {
 
 /// 카카오 지도(키가 있고 열리면) 또는 OSM 지도. 확대·축소·이동이 된다.
 class _MapBody extends StatefulWidget {
-  const _MapBody({required this.notice});
+  const _MapBody({required this.notice, this.showArea = false});
   final Notice notice;
+  final bool showArea; // 분양 지역 영역(원) 표시: 크게 보기에서만
   @override
   State<_MapBody> createState() => _MapBodyState();
 }
@@ -59,7 +60,7 @@ class _MapBodyState extends State<_MapBody> {
         lat: g.lat,
         lng: g.lng,
         zoom: g.approx ? 13 : 15,
-        areaRadius: g.approx ? 1500 : 400,
+        areaRadius: widget.showArea ? (g.approx ? 1500 : 400) : 0,
         onFail: () => mounted ? setState(() => _kakaoFailed = true) : null,
       );
     }
@@ -70,7 +71,8 @@ class _MapBodyState extends State<_MapBody> {
             initialCenter: center,
             initialZoom: g.approx ? 13.4 : 14.8,
             interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.drag |
+              flags:
+                  InteractiveFlag.drag |
                   InteractiveFlag.pinchZoom |
                   InteractiveFlag.doubleTapZoom |
                   InteractiveFlag.flingAnimation,
@@ -82,18 +84,19 @@ class _MapBodyState extends State<_MapBody> {
               userAgentPackageName: _userAgent,
               tileDimension: 384,
             ),
-            CircleLayer(
-              circles: [
-                CircleMarker(
-                  point: center,
-                  radius: g.approx ? 1500 : 400,
-                  useRadiusInMeter: true,
-                  color: const Color(0x30E53935),
-                  borderColor: const Color(0xCCE53935),
-                  borderStrokeWidth: 2,
-                ),
-              ],
-            ),
+            if (widget.showArea)
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: center,
+                    radius: g.approx ? 1500 : 400,
+                    useRadiusInMeter: true,
+                    color: const Color(0x30E53935),
+                    borderColor: const Color(0xCCE53935),
+                    borderStrokeWidth: 2,
+                  ),
+                ],
+              ),
             MarkerLayer(
               markers: [
                 Marker(
@@ -144,14 +147,21 @@ class FullMapScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          Expanded(child: _MapBody(notice: notice)),
+          Expanded(child: _MapBody(notice: notice, showArea: true)),
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Gap.md,
+                vertical: 10,
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.place_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.place_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -209,7 +219,10 @@ class _PlaceMapState extends State<PlaceMap> {
                         ),
                       ),
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
