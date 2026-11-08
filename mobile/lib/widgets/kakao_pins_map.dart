@@ -231,7 +231,6 @@ class KakaoPinsMap extends StatefulWidget {
     this.zoom = 6,
     this.dotZoom = 7,
     this.cardZoom = 10,
-    this.areaRadius = 1200,
   });
   final List<MapPin> pins;
   final void Function(String id) onSelect;
@@ -241,7 +240,6 @@ class KakaoPinsMap extends StatefulWidget {
   final int zoom;
   final int dotZoom; // 이보다 확대하면 묶음 대신 점
   final int cardZoom; // 이보다 확대하면 카드
-  final double areaRadius; // 분양 지역 영역 반지름(m)
 
   @override
   State<KakaoPinsMap> createState() => _KakaoPinsMapState();
@@ -297,20 +295,6 @@ class _KakaoPinsMapState extends State<KakaoPinsMap> {
             animation: const CameraAnimation(500),
           ),
         );
-      }
-      // 분양 지역 영역: 공고 위치 둘레를 접수 상태 색으로 옅게 칠한다.
-      for (final p in widget.pins) {
-        if (!mounted) return;
-        try {
-          await c.shapeLayer.addPolygonShape(
-            CirclePoint(widget.areaRadius, LatLng(p.lat, p.lng)),
-            PolygonStyle(
-              p.color.withValues(alpha: 0.18),
-              strokeWidth: 1.5,
-              strokeColor: p.color.withValues(alpha: 0.75),
-            ),
-          );
-        } catch (_) {}
       }
       // 공고: 멀리서는 안 보이고(투명), 중간은 점, 가까이는 카드.
       for (final p in widget.pins) {

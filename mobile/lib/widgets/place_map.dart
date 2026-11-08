@@ -58,7 +58,8 @@ class _MapBodyState extends State<_MapBody> {
       return KakaoNativeMap(
         lat: g.lat,
         lng: g.lng,
-        zoom: g.approx ? 13 : 16,
+        zoom: g.approx ? 13 : 15,
+        areaRadius: g.approx ? 1500 : 400,
         onFail: () => mounted ? setState(() => _kakaoFailed = true) : null,
       );
     }
@@ -67,7 +68,7 @@ class _MapBodyState extends State<_MapBody> {
         FlutterMap(
           options: MapOptions(
             initialCenter: center,
-            initialZoom: g.approx ? 13.4 : 15.4,
+            initialZoom: g.approx ? 13.4 : 14.8,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.drag |
                   InteractiveFlag.pinchZoom |
@@ -80,6 +81,18 @@ class _MapBodyState extends State<_MapBody> {
               urlTemplate: _tiles,
               userAgentPackageName: _userAgent,
               tileDimension: 384,
+            ),
+            CircleLayer(
+              circles: [
+                CircleMarker(
+                  point: center,
+                  radius: g.approx ? 1500 : 400,
+                  useRadiusInMeter: true,
+                  color: const Color(0x30E53935),
+                  borderColor: const Color(0xCCE53935),
+                  borderStrokeWidth: 2,
+                ),
+              ],
             ),
             MarkerLayer(
               markers: [

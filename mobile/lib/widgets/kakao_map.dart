@@ -16,11 +16,13 @@ class KakaoNativeMap extends StatefulWidget {
     required this.lng,
     required this.zoom,
     required this.onFail,
+    this.areaRadius = 0,
   });
   final double lat;
   final double lng;
   final int zoom; // 클수록 확대
   final VoidCallback onFail;
+  final double areaRadius; // 분양 지역 영역 반지름(m). 0 이면 표시 안 함
 
   @override
   State<KakaoNativeMap> createState() => _KakaoNativeMapState();
@@ -44,6 +46,18 @@ class _KakaoNativeMapState extends State<KakaoNativeMap> {
   Future<void> _onReady(KakaoMapController c) async {
     try {
       final pos = LatLng(widget.lat, widget.lng);
+      if (widget.areaRadius > 0) {
+        try {
+          await c.shapeLayer.addPolygonShape(
+            CirclePoint(widget.areaRadius, pos),
+            PolygonStyle(
+              const Color(0x30E53935),
+              strokeWidth: 2,
+              strokeColor: const Color(0xCCE53935),
+            ),
+          );
+        } catch (_) {}
+      }
       final pin = await KImage.fromWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
