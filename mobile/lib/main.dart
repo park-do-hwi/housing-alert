@@ -19,6 +19,7 @@ import 'screens/news_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/web_screen.dart';
+import 'widgets/ad_banner.dart';
 import 'widgets/splash_overlay.dart';
 
 Future<void> main() async {
@@ -26,6 +27,7 @@ Future<void> main() async {
   await initializeDateFormatting('ko_KR');
   final prefs = await SharedPreferences.getInstance();
   final userStore = await UserStore.open();
+  AdService.init(); // 기다리지 않는다: 광고 준비가 앱 시작을 늦추지 않게
   runApp(
     ProviderScope(
       overrides: [
@@ -206,9 +208,15 @@ class _HomeShellState extends State<HomeShell> {
           SettingsScreen(),
         ],
       ),
-      bottomNavigationBar: _NavBar(
-        index: index,
-        onSelect: (i) => setState(() => index = i),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdBanner(unitId: adUnitHome),
+          _NavBar(
+            index: index,
+            onSelect: (i) => setState(() => index = i),
+          ),
+        ],
       ),
     );
   }

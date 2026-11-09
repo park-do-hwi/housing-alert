@@ -37,6 +37,9 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // AdMob 앱 ID. 환경변수 ADMOB_APP_ID 가 없으면 구글 테스트용 ID 를 쓴다.
+        manifestPlaceholders["admobAppId"] =
+            System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
     signingConfigs {

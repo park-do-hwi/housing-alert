@@ -8,6 +8,7 @@ import '../core/grouping.dart';
 import '../core/models.dart';
 import '../core/providers.dart';
 import '../core/theme.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/common.dart';
 import '../widgets/place_map.dart';
 import '../widgets/timeline.dart';
@@ -117,7 +118,9 @@ class DetailScreen extends ConsumerWidget {
             style: t.bodySmall?.copyWith(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ]),
       bottomNavigationBar: SafeArea(
-        child: Padding(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const AdBanner(unitId: adUnitDetail),
+          Padding(
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.sm),
           child: Row(children: [
             Expanded(
@@ -143,6 +146,7 @@ class DetailScreen extends ConsumerWidget {
             ),
           ]),
         ),
+        ]),
       ),
     );
   }
