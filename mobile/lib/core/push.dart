@@ -68,6 +68,8 @@ class FcmPushService implements PushService {
     try {
       await FirebaseMessaging.instance.requestPermission();
     } catch (_) {}
+    final s = _last;
+    if (s != null) await sync(s); // 허용했다면 이제 구독
   }
 
   Future<void> markAsked() => _prefs.setBool(_askedKey, true);
@@ -87,10 +89,25 @@ class FcmPushService implements PushService {
   void _opened(RemoteMessage m) =>
       onOpen?.call('${m.data['id'] ?? ''}', '${m.data['url'] ?? ''}');
 
+  Subscription? _last;
+
+  /// 알림이 허용된 상태인지. 확인 실패 시 true (구독 시도는 무해하다).
+  Future<bool> _allowed() async {
+    try {
+      final st = await FirebaseMessaging.instance.getNotificationSettings();
+      return st.authorizationStatus == AuthorizationStatus.authorized ||
+          st.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return true;
+    }
+  }
+
   @override
   Future<void> sync(Subscription s) async {
     if (!_ready) return;
-    final want = topicsFor(s);
+    _last = s;
+    // 알림을 거부했거나 아직 안 정했으면 구독하지 않고, 이미 구독한 주제는 해제한다.
+    final want = await _allowed() ? topicsFor(s) : <String>{};
     final have = (_prefs.getStringList(_key) ?? const <String>[]).toSet();
     try {
       final m = FirebaseMessaging.instance;
