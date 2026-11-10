@@ -53,26 +53,31 @@ class _HousingAppState extends ConsumerState<HousingApp> {
 
   /// 알림을 누르면 그 공고의 상세 화면으로. 목록에 없으면 원문 페이지를 연다.
   Future<void> _openFromPush(String id, String url) async {
+    // 사용자가 건 목록 필터와 상관없이 전체 공고에서 찾는다.
     // 처음 켜질 때는 공고를 아직 못 불러왔을 수 있어 최대 6초까지 기다린다.
-    final keep = ref.listenManual(
-      noticesProvider,
-      (_, _) {},
-    ); // autoDispose 라서 붙들어 둔다
-    try {
-      for (var i = 0; i < 12; i++) {
-        final all = ref.read(noticesProvider).value;
-        if (all != null) {
-          final hit = all.where((n) => n.id == id).toList();
-          if (hit.isNotEmpty) {
-            router.push('/notice', extra: hit.first);
-            return;
-          }
-          break;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+    Notice? find() {
+      final data = ref.read(noticeDataProvider).value;
+      if (data == null) return null;
+      for (final n in data.items) {
+        if (n.id == id) return n;
       }
-    } finally {
-      keep.close();
+      return null;
+    }
+
+    for (var i = 0; i < 12 && ref.read(noticeDataProvider).value == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    var hit = find();
+    if (hit == null) {
+      // 저장된 목록이 옛것일 수 있다(방금 올라온 공고). 한 번 새로 받아 다시 찾는다.
+      try {
+        await ref.refresh(noticeDataProvider.future); // ignore: unused_result
+      } catch (_) {}
+      hit = find();
+    }
+    if (hit != null) {
+      router.push('/notice', extra: hit);
+      return;
     }
     if (url.startsWith('http')) router.push('/web', extra: url);
   }
