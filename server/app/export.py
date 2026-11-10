@@ -37,7 +37,9 @@ PHOTO_PER_RUN = 60      # 한 번 실행에서 대표 이미지를 새로 찾을
 NEWS_PER_RUN = 80       # 한 번 실행에서 관련 기사를 새로 찾을 최대 공고 수
 VIDEO_PER_RUN = 40      # 한 번 실행에서 관련 영상을 새로 찾을 최대 공고 수
 PLAN_VERSION = 2        # 평면도 기준 버전(출처 확인 방식)
-PV_VERSION = 2          # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
+from .collectors.photo import GENERIC_TITLE as _GENERIC_TITLE, OG_NAME as _OG_NAME  # noqa: E402
+
+PV_VERSION = 3         # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
 MARKET_PER_RUN = 150    # 한 번 실행에서 시·군·구 코드를 새로 찾을 최대 공고 수
 PHOTO_RETRY_DAYS = 7    # 이미지를 못 찾았을 때 다시 보는 간격
@@ -291,7 +293,13 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
             u = it.get("photo") or ""
             if u and it.get("pv") != PV_VERSION:
                 try:
-                    if validate(u):
+                    if _GENERIC_TITLE.search(it.get("title", "")):
+                        for k in ("photo", "photo_hi", "pchk"):
+                            it.pop(k, None)  # 여러 지구를 묶은 공고의 검색 사진은 엉뚱한 그림이다
+                    elif search_photo is not None and _OG_NAME.search(u):
+                        for k in ("photo", "photo_hi", "pchk"):
+                            it.pop(k, None)  # 공유용 이미지(로고·문구 배너)는 검색 사진을 먼저 본다
+                    elif validate(u):
                         for k in ("photo", "photo_hi", "pchk"):
                             it.pop(k, None)  # 바로 다시 찾는다(새 검색은 지도를 거른다)
                     else:
@@ -319,10 +327,13 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
             continue
         budget -= 1
         url = None
+        og_fallback = None
         try:
             url = find_photo(hp) if hp else None
             if url and validate and validate(url):
                 url = None  # 홈페이지 대표 이미지가 로고·지도·도면이면 쓰지 않는다
+            elif url and use_search and _OG_NAME.search(url):
+                og_fallback, url = url, None  # 공유용 이미지는 문구 배너가 많다: 검색 사진을 먼저 보고, 없으면 이걸 쓴다
         except Exception:
             log.warning("photo fetch failed: %s", it["id"])
         if not url and use_search:
@@ -334,6 +345,7 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
                         it["photo_hi"] = found[1]
             except Exception:
                 log.warning("photo search failed: %s", it["id"])
+        url = url or og_fallback
         if url:
             it["photo"] = url
             if validate is not None or (search_photo is not None and "kakaocdn.net" in url):

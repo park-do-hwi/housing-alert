@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
 import '../core/providers.dart';
+import '../core/push.dart';
 import '../core/theme.dart';
 import 'web_screen.dart';
 
@@ -55,6 +56,16 @@ final pushHistoryProvider = FutureProvider.autoDispose<List<PushEntry>>((
   ];
 });
 
+/// 서버 topic_push.topics_for 와 같은 규칙.
+List<String> _topicsOf(PushEntry e) {
+  final s = sidoList.contains(e.sido) ? '${sidoList.indexOf(e.sido)}' : 'x';
+  final cats = [
+    for (final t in e.tags)
+      if (categoryList.contains(t)) '${categoryList.indexOf(t)}',
+  ];
+  return [for (final c in (cats.isEmpty ? ['x'] : cats)) 'n_${s}_$c'];
+}
+
 String _ago(DateTime? t) {
   if (t == null) return '';
   final d = DateTime.now().difference(t);
@@ -70,7 +81,11 @@ class PushHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(pushHistoryProvider);
+    final async = ref.watch(pushHistoryProvider).whenData((all) {
+      // 서버가 보낸 전체 기록 중 내 관심 지역·유형(실제로 알림이 오는 것)만 보여준다.
+      final mine = topicsFor(ref.watch(subscriptionProvider));
+      return all.where((e) => _topicsOf(e).any(mine.contains)).toList();
+    });
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('알림 기록')),

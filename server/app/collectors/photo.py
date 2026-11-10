@@ -18,6 +18,10 @@ OG = [
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image', re.I),
 ]
 MIN_BYTES = 30 * 1024
+GENERIC_TITLE = re.compile(r"매입임대|전세임대|다자녀|\d+\s*개\s*지구|기숙사|도전숙|협동조합|입주자격\s*완화")
+NEWS_SITE = re.compile(r"뉴스|news|신문|일보|경제|연합|mbn|ytn|sbs|kbs|mbc|tv|매경|한경|머니|이데일리|헤럴드|파이낸셜", re.I)
+# 홈페이지 공유용(og) 이미지는 로고·문구 배너인 경우가 많다. 이런 이름이면 검색 사진을 먼저 본다.
+OG_NAME = re.compile(r"/og[_\-.]|/og_img/|og[_\-]?image", re.I)
 
 
 def pick_image(html: str, base_url: str) -> str | None:
@@ -69,7 +73,13 @@ def is_map_like(url: str) -> bool:
     px = list(im.getdata())
     vivid = sum(1 for _, s, v in px if s > 140 and v > 150) / 4096
     white = sum(1 for _, s, v in px if s < 30 and v > 225) / 4096  # 흰 바탕의 도면·지도·로고
-    return vivid > 0.15 or white > 0.40
+    if vivid > 0.15 or white > 0.40:
+        return True
+    # 한 가지 색이 절반 넘게 차지하면 사진이 아니라 로고·문구 배너(실제 단지 사진은 25% 이하였다)
+    from collections import Counter
+    rgb = Image.open(io.BytesIO(r.content)).convert("RGB").resize((64, 64))
+    top = Counter((a // 32, b // 32, c // 32) for a, b, c in rgb.getdata()).most_common(1)[0][1] / 4096
+    return top > 0.40
 
 
 def is_not_floorplan(url: str) -> bool:
@@ -111,6 +121,8 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도", si
     from .geo import search_query
 
     key = key or os.environ.get("KAKAO_REST_KEY")
+    if GENERIC_TITLE.search(item.get("title", "")):
+        return None  # 여러 지구·주택을 묶은 공고는 검색하면 엉뚱한 그림이 나온다
     q = search_query(item.get("title", ""))
     if not key or len(q.replace(" ", "")) < 3:
         return None
@@ -126,6 +138,8 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도", si
         w = d.get("width") or 0
         if site_host and site_host not in _host(d.get("doc_url") or ""):
             continue
+        if not site_host and NEWS_SITE.search(f"{d.get('display_sitename') or ''} {_host(d.get('doc_url') or '')}"):
+            continue  # 뉴스 사이트 사진은 'NEWS' 같은 글자 워터마크가 붙어 있다
         if th.startswith("https://") and w >= 400 and not BAD.search(d.get("image_url", "")):
             cands.append((th, hi, w))
     # 상세에서 선명하게 보이도록 큰 원본(가로 800 이상, 원본 주소 있음)을 먼저, 그 안에서는 관련도 순서 그대로

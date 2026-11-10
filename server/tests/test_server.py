@@ -353,7 +353,7 @@ def test_geo_search_query_and_fill():
 
 def test_photo_pick_and_fill():
     from app.collectors.photo import pick_image
-    from app.export import _fill_photo
+    from app.export import _fill_photo, PV_VERSION
     from datetime import date
 
     ok = '<meta property="og:image" content="/upload/og_img/og_2026.jpg">'
@@ -423,13 +423,13 @@ def test_plan_per_type():
 
 def test_photo_validate_drops_map_like():
     from datetime import date
-    from app.export import _fill_photo
+    from app.export import _fill_photo, PV_VERSION
 
     today = date(2026, 11, 7)
     items = {"a": {"id": "a", "source": "APPLYHOME", "apply_end": "2026-11-20", "photo": "https://search1.kakaocdn.net/m.jpg"},
              "b": {"id": "b", "source": "APPLYHOME", "apply_end": "2026-11-21", "photo": "https://search1.kakaocdn.net/p.jpg"}}
     _fill_photo(items, lambda hp: None, today, search_photo=lambda it: None, validate=lambda u: u.endswith("m.jpg"))
-    assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == 2
+    assert "photo" not in items["a"] and items["b"]["photo"].endswith("p.jpg") and items["b"]["pv"] == PV_VERSION
 
 
 def test_good_video_filters_short_and_old():
