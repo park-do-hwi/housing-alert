@@ -566,3 +566,14 @@ def test_push_body_details():
     assert n["title"] == "🔔 서울 분양 새 공고"
     assert n["body"].splitlines() == ["공고명", "📅 접수 11/10~11/12 (D-4)", "🏠 전용 60·84㎡ · 총 120세대", "📍 서울 중구"]
     assert push.body_for({"title": "t"}) == "t"
+
+
+def test_worth_push_skips_results_corrections_noise():
+    from app.topic_push import worth_push
+
+    ok = {"title": "OO 무순위 사후접수", "tags": ["무순위"]}
+    assert worth_push(ok)
+    assert not worth_push({"title": "OO 입주안내문 및 준공인가증", "tags": ["결과"]})
+    assert not worth_push({"title": "[정정공고]OO 행복주택", "tags": ["임대", "정정"]})
+    assert not worth_push({"title": "OO 국민임대 예비입주자 모집공고문", "tags": ["임대", "결과"]})
+    assert not worth_push({"title": "OO 상가 입찰", "tags": ["분양"]})

@@ -84,7 +84,14 @@ class PushHistoryScreen extends ConsumerWidget {
     final async = ref.watch(pushHistoryProvider).whenData((all) {
       // 서버가 보낸 전체 기록 중 내 관심 지역·유형(실제로 알림이 오는 것)만 보여준다.
       final mine = topicsFor(ref.watch(subscriptionProvider));
-      return all.where((e) => _topicsOf(e).any(mine.contains)).toList();
+      return all
+          .where(
+            (e) =>
+                !e.tags.contains('결과') &&
+                !e.tags.contains('정정') &&
+                _topicsOf(e).any(mine.contains),
+          )
+          .toList();
     });
     final cs = Theme.of(context).colorScheme;
     return Scaffold(

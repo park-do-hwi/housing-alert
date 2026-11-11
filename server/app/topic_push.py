@@ -86,6 +86,14 @@ def _token(info: dict) -> str:
     return cred.token
 
 
+def worth_push(item: dict) -> bool:
+    """'새 공고' 알림을 보낼 만한가: 결과·입주안내 같은 결과성 글, 정정공고, 신청자와 무관한 잡글은 보내지 않는다."""
+    from .classify import NOISE_RE, pushable
+
+    tags = item.get("tags") or []
+    return pushable(tags) and "정정" not in tags and not NOISE_RE.search(item.get("title", ""))
+
+
 def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: str | None = None) -> list[dict]:
     """보낸 공고 목록을 돌려준다."""
     raw = raw_account if raw_account is not None else os.environ.get("FCM_SERVICE_ACCOUNT", "")
@@ -93,7 +101,8 @@ def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: s
         return []
     info = json.loads(raw)
     by_id = {i["id"]: i for i in items}
-    todo = [by_id[i] for i in new_ids if i in by_id and (not by_id[i].get("apply_end") or by_id[i]["apply_end"] >= today_iso)]
+    todo = [by_id[i] for i in new_ids if i in by_id and worth_push(by_id[i])
+            and (not by_id[i].get("apply_end") or by_id[i]["apply_end"] >= today_iso)]
     todo = todo[:MAX_PER_RUN]
     if not todo:
         return []
