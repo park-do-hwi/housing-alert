@@ -82,6 +82,48 @@ def is_map_like(url: str) -> bool:
     return top > 0.40
 
 
+_ocr = None
+
+
+def is_text_heavy(url: str) -> bool:
+    """사진 위에 글자가 많이 얹혔는지(문구 배너·배치도·워터마크). 글자 인식(OCR)으로 센다.
+    실제 단지 사진은 글자 영역이 1.4% 이하·조각 3개 이하였고, 배너·배치도는 3% 이상이거나 조각이 6개 이상이었다.
+    OCR 도구가 없거나 실패하면 걸러내지 않는다."""
+    global _ocr
+    import io
+
+    try:
+        import numpy as np
+        from PIL import Image
+
+        if _ocr is None:
+            from rapidocr_onnxruntime import RapidOCR
+
+            _ocr = RapidOCR()
+        r = requests.get(url, headers=UA, timeout=15)
+        r.raise_for_status()
+        im = Image.open(io.BytesIO(r.content)).convert("RGB")
+        im.thumbnail((800, 800))
+        arr = np.array(im)
+        res, _ = _ocr(arr)
+    except Exception as e:  # noqa: BLE001
+        log.warning("ocr skipped: %s", e)
+        return False
+    n, area = 0, 0.0
+    for box, txt, score in res or []:
+        if float(score) < 0.6 or len(txt.strip()) < 2:
+            continue
+        xs, ys = [p[0] for p in box], [p[1] for p in box]
+        area += (max(xs) - min(xs)) * (max(ys) - min(ys))
+        n += 1
+    return n >= 6 or area / (arr.shape[0] * arr.shape[1]) > 0.025
+
+
+def check_photo(url: str) -> bool:
+    """쓰면 안 되는 사진인가: 지도·도면·로고(색 검사) 또는 글자가 많은 것(OCR). 원본 주소를 넘기면 글자를 더 잘 읽는다."""
+    return is_map_like(url) or is_text_heavy(url)
+
+
 def is_not_floorplan(url: str) -> bool:
     """평면도가 아닌 그림인지. 평면도는 흰/밝은 바탕에 선이 있는 도면이다.
     녹지가 보이는 항공 배치도·조감도 사진이거나, 밝은 바탕이 적으면 평면도가 아니라고 본다."""
@@ -147,7 +189,7 @@ def search_photo(item: dict, key: str | None = None, kind: str = "조감도", si
     for th, hi, _ in cands:
         if kind == "조감도" or "평면도" in kind:
             try:
-                if (is_map_like(th) if kind == "조감도" else is_not_floorplan(th)):
+                if (check_photo(hi or th) if kind == "조감도" else is_not_floorplan(th)):
                     continue
             except Exception:
                 pass  # 판별 실패는 그냥 쓴다

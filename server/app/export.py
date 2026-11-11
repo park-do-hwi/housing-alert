@@ -39,7 +39,7 @@ VIDEO_PER_RUN = 40      # 한 번 실행에서 관련 영상을 새로 찾을 �
 PLAN_VERSION = 2        # 평면도 기준 버전(출처 확인 방식)
 from .collectors.photo import GENERIC_TITLE as _GENERIC_TITLE, OG_NAME as _OG_NAME  # noqa: E402
 
-PV_VERSION = 3         # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
+PV_VERSION = 4         # 지도·도면 검사 기준 버전(기준이 바뀌면 올려서 저장된 사진을 다시 검사한다)
 PLAN_PER_RUN = 25       # 한 번 실행에서 평면도를 새로 찾을 최대 공고 수
 MARKET_PER_RUN = 150    # 한 번 실행에서 시·군·구 코드를 새로 찾을 최대 공고 수
 PHOTO_RETRY_DAYS = 7    # 이미지를 못 찾았을 때 다시 보는 간격
@@ -299,7 +299,7 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
                     elif search_photo is not None and _OG_NAME.search(u):
                         for k in ("photo", "photo_hi", "pchk"):
                             it.pop(k, None)  # 공유용 이미지(로고·문구 배너)는 검색 사진을 먼저 본다
-                    elif validate(u):
+                    elif validate(it.get("photo_hi") or u):
                         for k in ("photo", "photo_hi", "pchk"):
                             it.pop(k, None)  # 바로 다시 찾는다(새 검색은 지도를 거른다)
                     else:
@@ -546,7 +546,7 @@ def main(argv=None):
                         geocode=geo.geocode if os.environ.get("KAKAO_REST_KEY") else None,
                         find_photo=photo.find_photo,
                         search_photo=photo.search_photo if os.environ.get("KAKAO_REST_KEY") else None,
-                        validate=photo.is_map_like if os.environ.get("KAKAO_REST_KEY") else None,
+                        validate=photo.check_photo if os.environ.get("KAKAO_REST_KEY") else None,
                         plan_validate=photo.is_not_floorplan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_plan=photo.search_plan if os.environ.get("KAKAO_REST_KEY") else None,
                         search_videos=videos.search_videos if os.environ.get("KAKAO_REST_KEY") else None,

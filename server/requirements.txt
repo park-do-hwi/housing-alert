@@ -8,3 +8,4 @@ httpx
 pillow
 pymupdf
 google-auth
+rapidocr-onnxruntime
