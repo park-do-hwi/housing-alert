@@ -64,6 +64,9 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       return null;
     }
 
+    // 앱이 알림으로 막 켜졌다면 첫 화면(라우터)이 그려지기 전에 이동하면 빈 화면이 된다. 첫 프레임 뒤로 미룬다.
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 600));
     for (var i = 0; i < 12 && ref.read(noticeDataProvider).value == null; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
@@ -80,6 +83,7 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       return;
     }
     if (url.startsWith('http')) router.push('/web', extra: url);
+    // 공고도 원문 주소도 없으면 흰 화면 대신 목록을 그대로 둔다.
   }
 
   @override
