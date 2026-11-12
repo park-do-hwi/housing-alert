@@ -284,10 +284,24 @@ def _fill_geo(merged: dict, geocode, today: date) -> None:
             it["gchk"] = today.isoformat()
 
 
+def _photo_block() -> set[str]:
+    """photo_block.txt 에 적은 공고 id 집합(# 로 시작하는 줄은 주석)."""
+    f = Path(__file__).with_name("photo_block.txt")
+    if not f.exists():
+        return set()
+    return {ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")}
+
+
 def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, validate=None) -> None:
     """분양 홈페이지 주소가 있고 아직 이미지가 없는 공고만, 한 번에 PHOTO_PER_RUN 건까지 조회한다.
     못 찾은 것은 pchk(확인한 날)를 남기고 PHOTO_RETRY_DAYS 일 뒤에 다시 본다(사진은 나중에 올라오기도 한다)."""
     budget = PHOTO_PER_RUN
+    blocked = _photo_block()
+    for bid in blocked:
+        it = merged.get(bid)
+        if it:
+            for k in ("photo", "photo_hi", "pchk", "pv"):
+                it.pop(k, None)
     if validate:  # 예전에 저장한 검색 결과 중 지도 같은 그림은 빼고 다시 찾게 한다(검사한 것은 pv=1)
         for it in merged.values():
             u = it.get("photo") or ""
@@ -313,6 +327,8 @@ def _fill_photo(merged: dict, find_photo, today: date, search_photo=None, valida
     for it in sorted(merged.values(), key=lambda x: (stale_thumb(x), x.get("apply_end") or "9999")):
         if budget <= 0:
             break
+        if it.get("id") in blocked:
+            continue
         hp = (it.get("info") or {}).get("homepage")
         use_search = search_photo is not None and (it.get("source") == "APPLYHOME" or bool(it.get("geo")))
         if it.get("photo") and not (use_search and "kakaocdn.net" in it["photo"] and not it.get("photo_hi")):

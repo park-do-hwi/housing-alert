@@ -577,3 +577,16 @@ def test_worth_push_skips_results_corrections_noise():
     assert not worth_push({"title": "[정정공고]OO 행복주택", "tags": ["임대", "정정"]})
     assert not worth_push({"title": "OO 국민임대 예비입주자 모집공고문", "tags": ["임대", "결과"]})
     assert not worth_push({"title": "OO 상가 입찰", "tags": ["분양"]})
+
+
+def test_photo_block_removes_and_skips():
+    from datetime import date
+    from unittest import mock
+
+    from app import export
+
+    items = {"a": {"id": "a", "source": "APPLYHOME", "apply_end": "2026-11-30", "photo": "https://x/p.jpg", "info": {"homepage": "h.kr"}},
+             "b": {"id": "b", "source": "APPLYHOME", "apply_end": "2026-11-30", "info": {"homepage": "h.kr"}}}
+    with mock.patch.object(export, "_photo_block", return_value={"a"}):
+        export._fill_photo(items, lambda hp: "https://x/new.jpg", date(2026, 11, 12))
+    assert "photo" not in items["a"] and items["b"]["photo"].endswith("new.jpg")

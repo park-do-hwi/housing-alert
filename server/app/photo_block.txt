@@ -1,0 +1,14 @@
+# 단지 사진을 붙이지 않을 공고 id (한 줄에 하나). 글자 인식으로 못 거르는 사진(워터마크·지도·실내·전경)을 사람이 직접 막는다.
+# 막힌 공고는 앱에서 기본 "예시" 그림이 보인다.
+APPLYHOME:getRemndrLttotPblancDetail:2026910297:2026910297
+APPLYHOME:getOPTLttotPblancDetail:2026940250:2026940250
+APPLYHOME:getRemndrLttotPblancDetail:2026910290:2026910290
+APPLYHOME:getAPTLttotPblancDetail:2026000434:2026000434
+LH:2015122300020995
+LH:2015122300020974
+LH:2015122300020962
+GH:65152
+GH:65107
+GH:64966
+GH:64959
+GH:64847
