@@ -272,10 +272,10 @@ class NoticeFilter {
         mineOnly: mineOnly ?? this.mineOnly,
       );
 
-  /// 목록 화면용 필터. 결과성 공고(당첨자 발표 등)는 기본적으로 숨긴다.
+  /// 목록 화면용 필터. 결과성 공고(당첨자 발표 등)·정정공고는 기본적으로 숨긴다.
   List<Notice> apply(List<Notice> all, [Subscription mine = const Subscription()]) {
     return all.where((n) {
-      if (n.isResult) return false;
+      if (n.isResult || n.tags.contains('정정')) return false;
       if (sido != null && n.sido != sido) return false;
       if (category != null && !n.tags.contains(category)) return false;
       if (query.isNotEmpty && !n.title.contains(query)) return false;
