@@ -71,6 +71,9 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     var hit = find();
+    print(
+      'DBG hit=${hit?.title} dataNull=${ref.read(noticeDataProvider).value == null}',
+    );
     if (hit == null) {
       // 저장된 목록이 옛것일 수 있다(방금 올라온 공고). 한 번 새로 받아 다시 찾는다.
       try {
@@ -139,12 +142,15 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       GoRoute(path: '/compare', builder: (_, _) => const CompareScreen()),
       GoRoute(
         path: '/notice',
-        builder: (_, state) => DetailScreen(notice: state.extra! as Notice),
+        builder: (_, state) => state.extra is Notice
+            ? DetailScreen(notice: state.extra! as Notice)
+            : HomeShell(onFirstFrame: _askPush),
       ),
       GoRoute(
         path: '/web',
-        builder: (_, state) =>
-            WebScreen(url: state.extra! as String, title: '공고 원문'),
+        builder: (_, state) => state.extra is String
+            ? WebScreen(url: state.extra! as String, title: '공고 원문')
+            : HomeShell(onFirstFrame: _askPush),
       ),
     ],
   );
@@ -221,10 +227,7 @@ class _HomeShellState extends State<HomeShell> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const AdBanner(unitId: adUnitHome),
-          _NavBar(
-            index: index,
-            onSelect: (i) => setState(() => index = i),
-          ),
+          _NavBar(index: index, onSelect: (i) => setState(() => index = i)),
         ],
       ),
     );
