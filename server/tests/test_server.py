@@ -590,3 +590,11 @@ def test_photo_block_removes_and_skips():
     with mock.patch.object(export, "_photo_block", return_value={"a"}):
         export._fill_photo(items, lambda hp: "https://x/new.jpg", date(2026, 11, 12))
     assert "photo" not in items["a"] and items["b"]["photo"].endswith("new.jpg")
+
+
+def test_reserve_applicant_recruitment_is_not_result():
+    from app.classify import tags_for
+
+    assert "결과" not in tags_for("익산 영구임대주택 예비입주자 모집공고")
+    assert "결과" in tags_for("OO 예비입주자 명단 발표")
+    assert "결과" in tags_for("[입주안내문] 동작보라매역 프리센트(제50차 장기전세)")

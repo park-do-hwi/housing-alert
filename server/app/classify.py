@@ -24,7 +24,9 @@ def tags_for(title: str, type_text: str = "") -> list[str]:
         tags.append("분양")
     if re.search(r"임대|행복주택|전세", text) and "장기전세" not in tags:
         tags.append("임대")
-    if any(w in text for w in RESULT_WORDS):
+    # '예비입주자 모집공고'는 지금 신청받는 모집이라 결과성이 아니다(당첨자 발표·입주안내문 등만 결과성).
+    result_words = [w for w in RESULT_WORDS if not (w == "예비입주자" and "모집" in title)]
+    if any(w in text for w in result_words):
         tags.append("결과")
     if "정정" in text:
         tags.append("정정")
