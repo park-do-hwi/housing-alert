@@ -71,15 +71,16 @@ class _HousingAppState extends ConsumerState<HousingApp> {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     var hit = find();
-    print(
-      'DBG hit=${hit?.title} dataNull=${ref.read(noticeDataProvider).value == null}',
-    );
     if (hit == null) {
       // 저장된 목록이 옛것일 수 있다(방금 올라온 공고). 한 번 새로 받아 다시 찾는다.
       try {
         await ref.refresh(noticeDataProvider.future); // ignore: unused_result
       } catch (_) {}
       hit = find();
+    }
+    if (hit != null && hit.isAnnouncement) {
+      router.push('/web', extra: hit.url); // 발표는 발표 원문 페이지로
+      return;
     }
     if (hit != null) {
       router.push('/notice', extra: hit);

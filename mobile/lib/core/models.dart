@@ -162,6 +162,9 @@ class Notice {
 
   bool get isResult => tags.contains('결과');
 
+  /// 접수·세대 정보가 없는 '○○ 발표' 글: 상세 화면 대신 원문 페이지로 연다.
+  bool get isAnnouncement => title.contains('발표') && url.startsWith('http');
+
   /// 서버가 처음 본 지 24시간 안이면 새 공고.
   bool isNew([DateTime? now]) {
     final f = firstSeen;

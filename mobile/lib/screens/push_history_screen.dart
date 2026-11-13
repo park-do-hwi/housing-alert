@@ -160,13 +160,13 @@ class PushHistoryScreen extends ConsumerWidget {
                       onTap: () {
                         final all = ref.read(noticesProvider).value ?? const [];
                         final hit = all.where((n) => n.id == e.id).toList();
-                        if (hit.isNotEmpty) {
+                        if (hit.isNotEmpty && !hit.first.isAnnouncement) {
                           context.push('/notice', extra: hit.first);
-                        } else if (e.url.startsWith('http')) {
+                        } else if ((hit.isNotEmpty ? hit.first.url : e.url).startsWith('http')) {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>
-                                  WebScreen(url: e.url, title: e.title),
+                                  WebScreen(url: hit.isNotEmpty ? hit.first.url : e.url, title: e.title),
                             ),
                           );
                         }
