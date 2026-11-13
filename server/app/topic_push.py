@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import re
 
 import requests
 
@@ -104,11 +105,22 @@ def _token(info: dict) -> str:
     return cred.token
 
 
+PUSH_OK_RE = re.compile(r"모집|분양|공급|매각|접수|신청|청약")
+PUSH_BAD_RE = re.compile(r"발표|안내|수칙|대상자|선정|서류심사|명단|당첨|통보|결과|합격|심사")
+
+
 def worth_push(item: dict) -> bool:
     """'새 공고' 알림을 보낼 만한가: 결과·입주안내 같은 결과성 글, 정정공고, 신청자와 무관한 잡글은 보내지 않는다."""
     from .classify import NOISE_RE, pushable
 
     tags = item.get("tags") or []
+    title = item.get("title", "")
+    # 모집·분양·공급 공고만. '발표·안내·수칙·대상자' 같은 사후 안내글은 신청받는 공고가 아니라 알리지 않는다.
+    # 청약홈 공고는 제목이 단지 이름뿐이라 이 검사를 하지 않는다(게시판 글인 LH·SH·GH 에만 적용).
+    if not str(item.get("id", "")).startswith("APPLYHOME") and (
+        not PUSH_OK_RE.search(title) or PUSH_BAD_RE.search(title)
+    ):
+        return False
     return pushable(tags) and "정정" not in tags and not NOISE_RE.search(item.get("title", ""))
 
 
