@@ -599,6 +599,12 @@ def main(argv=None):
         except Exception as e:  # 공매가 실패해도 공고 수집은 그대로
             print("공매 수집 실패:", e, file=sys.stderr)
     sent: list[dict] = []
+    pf = out / "pushes.json"
+    try:
+        pj = json.loads(pf.read_text(encoding="utf-8")) if pf.exists() else {}
+    except Exception:
+        pj = {}
+    pending = list(pj.get("pending") or [])
     if os.environ.get("FCM_SERVICE_ACCOUNT"):
         try:
             from . import topic_push as push
@@ -608,18 +614,20 @@ def main(argv=None):
                 act = [i for i in items if (i.get("apply_end") or "") >= date.today().isoformat()]
                 act.sort(key=lambda i: i.get("sido") != os.environ.get("PUSH_TEST_SIDO", "서울"))  # 서울 공고 우선
                 ids = [i["id"] for i in act][:1]
-            sent = push.notify(items, ids, date.today().isoformat())
-            print(f"푸시 {len(sent)}건")
+                send_ids, pending = ids, pending
+            else:
+                send_ids, pending = push.plan(items, ids, pending, date.today().isoformat(), push.is_quiet())
+            sent = push.notify(items, send_ids, date.today().isoformat())
+            print(f"푸시 {len(sent)}건 (미룸 {len(pending)}건)")
         except Exception as e:  # 푸시가 실패해도 공고 수집은 그대로
             print("푸시 실패:", e, file=sys.stderr)
     try:  # 알림 기록(pushes.json): 앱의 "알림 기록" 목록. 배포가 사이트를 통째로 바꾸므로 이전 기록을 이어서 쓴다.
         from . import topic_push as push
 
-        pf = out / "pushes.json"
-        prev = json.loads(pf.read_text(encoding="utf-8")).get("items", []) if pf.exists() else []
+        prev = pj.get("items", [])
         hist = push.merge_history(prev, sent, meta["generated_at"])
-        if hist:
-            pf.write_text(json.dumps({"generated_at": meta["generated_at"], "items": hist}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        if hist or pending:
+            pf.write_text(json.dumps({"generated_at": meta["generated_at"], "items": hist, "pending": pending}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     except Exception as e:
         print("알림 기록 실패:", e, file=sys.stderr)
     print(f'공고 {meta["count"]}건 (신규 {len(meta["new"])}, 변경 {len(meta["changed"])}, '

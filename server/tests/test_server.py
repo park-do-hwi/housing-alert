@@ -598,3 +598,22 @@ def test_reserve_applicant_recruitment_is_not_result():
     assert "결과" not in tags_for("익산 영구임대주택 예비입주자 모집공고")
     assert "결과" in tags_for("OO 예비입주자 명단 발표")
     assert "결과" in tags_for("[입주안내문] 동작보라매역 프리센트(제50차 장기전세)")
+
+
+def test_push_plan_quiet_hours_and_cap():
+    from datetime import datetime, timezone
+
+    from app import topic_push as tp
+
+    def it(i, ann="2026-11-14", end="2026-12-01"):
+        return {"id": f"x{i}", "title": f"공고{i} 입주자 모집공고", "tags": ["분양"], "announce_date": ann, "apply_end": end}
+
+    items = [it(i) for i in range(8)] + [it(98, ann="2026-10-01"), it(99, end="2026-11-01")]
+    ids = [i["id"] for i in items]
+    send, rest = tp.plan(items, ids, [], "2026-11-14", quiet=False)
+    assert len(send) == tp.MAX_PER_RUN and len(rest) == 8 - tp.MAX_PER_RUN  # 오래된 공고·마감 공고는 버린다
+    send2, rest2 = tp.plan(items, [], rest, "2026-11-14", quiet=False)
+    assert send2 == rest and rest2 == []
+    assert tp.plan(items, ids, [], "2026-11-14", quiet=True)[0] == []  # 새벽엔 안 보낸다
+    assert tp.is_quiet(datetime(2026, 11, 13, 18, 0, tzinfo=timezone.utc))  # KST 03:00
+    assert not tp.is_quiet(datetime(2026, 11, 13, 1, 0, tzinfo=timezone.utc))  # KST 10:00

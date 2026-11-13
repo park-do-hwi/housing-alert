@@ -14,7 +14,25 @@ log = logging.getLogger(__name__)
 SIDO = ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종",
         "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
 CATS = ["분양", "무순위", "장기전세", "임대"]
-MAX_PER_RUN = 20
+MAX_PER_RUN = 5          # 한 번(30분)에 보내는 알림 수. 넘치는 건 다음 회차로 미룬다
+FRESH_DAYS = 3           # 공고일이 이보다 오래된 건 알림을 보내지 않는다(목록에는 그대로 있다)
+QUIET_START, QUIET_END = 23, 7   # 한국 시간 23시~07시는 알림을 보내지 않고 아침으로 미룬다
+
+
+def is_quiet(now_utc=None) -> bool:
+    from datetime import datetime, timedelta, timezone
+
+    now = (now_utc or datetime.now(timezone.utc)) + timedelta(hours=9)
+    return now.hour >= QUIET_START or now.hour < QUIET_END
+
+
+def is_fresh(item: dict, today_iso: str) -> bool:
+    from datetime import date, timedelta
+
+    ann = item.get("announce_date")
+    if not ann:
+        return True
+    return date.fromisoformat(ann[:10]) >= date.fromisoformat(today_iso[:10]) - timedelta(days=FRESH_DAYS)
 
 
 def topics_for(item: dict) -> list[str]:
@@ -92,6 +110,23 @@ def worth_push(item: dict) -> bool:
 
     tags = item.get("tags") or []
     return pushable(tags) and "정정" not in tags and not NOISE_RE.search(item.get("title", ""))
+
+
+def plan(items: list[dict], new_ids: list[str], pending: list[str], today_iso: str, quiet: bool) -> tuple[list[str], list[str]]:
+    """(이번에 보낼 id, 다음으로 미룰 id). 새벽엔 전부 미루고, 아니면 MAX_PER_RUN 건만 보낸다.
+    공고일이 오래됐거나 접수가 끝난 건 아예 버린다(대량 수집 때 한꺼번에 울리지 않게)."""
+    by_id = {i["id"]: i for i in items}
+    queue: list[str] = []
+    for i in list(pending) + list(new_ids):
+        it = by_id.get(i)
+        if i in queue or not it or not worth_push(it) or not is_fresh(it, today_iso):
+            continue
+        if it.get("apply_end") and it["apply_end"] < today_iso:
+            continue
+        queue.append(i)
+    if quiet:
+        return [], queue
+    return queue[:MAX_PER_RUN], queue[MAX_PER_RUN:]
 
 
 def notify(items: list[dict], new_ids: list[str], today_iso: str, raw_account: str | None = None) -> list[dict]:
