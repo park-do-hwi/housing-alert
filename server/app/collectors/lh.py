@@ -4,7 +4,8 @@ from bs4 import BeautifulSoup
 
 from .base import RawNotice, fetch, parse_date
 
-LH_LIST = "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancList.do?mi=1026"
+LH_LIST = "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancList.do?mi=1026"  # 임대주택
+LH_SALE_LIST = LH_LIST.replace("mi=1026", "mi=1027")  # 분양주택(공공분양·잔여세대·무순위)
 
 
 def parse(html: str) -> list[RawNotice]:
@@ -38,4 +39,11 @@ def parse(html: str) -> list[RawNotice]:
 
 
 def collect() -> list[RawNotice]:
-    return parse(fetch(LH_LIST))
+    out = parse(fetch(LH_LIST))
+    try:  # 분양 게시판이 실패해도 임대 공고 수집은 계속한다
+        seen = {n.ext_id for n in out}
+        out += [n for n in parse(fetch(LH_SALE_LIST)) if n.ext_id not in seen]
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("LH 분양 게시판 수집 실패", exc_info=True)
+    return out
