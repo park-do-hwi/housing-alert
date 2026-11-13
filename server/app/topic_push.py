@@ -105,8 +105,8 @@ def _token(info: dict) -> str:
     return cred.token
 
 
-PUSH_OK_RE = re.compile(r"모집|분양|공급|매각|접수|신청|청약")
-PUSH_BAD_RE = re.compile(r"발표|안내|수칙|대상자|선정|서류심사|명단|당첨|통보|결과|합격|심사")
+PUSH_OK_RE = re.compile(r"모집|분양|공급|매각|접수|신청|청약|발표")
+PUSH_BAD_RE = re.compile(r"안내|수칙|선정|서류심사|명단|당첨|통보|결과|합격|심사")
 
 
 def worth_push(item: dict) -> bool:
