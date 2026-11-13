@@ -73,7 +73,10 @@ jobs:
         run: python -m app.export --out public
 
       - name: 개인정보처리방침 페이지 포함
-        run: cp docs/privacy.html server/public/privacy.html
+        run: |
+          cp docs/privacy.html server/public/privacy.html
+          mkdir -p server/public/account-pick
+          cp docs/account_pick_privacy.html server/public/account-pick/privacy.html
 
       - uses: actions/configure-pages@v5
 
