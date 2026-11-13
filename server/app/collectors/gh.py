@@ -43,7 +43,12 @@ def parse(html: str) -> list[RawNotice]:
     for tr in soup.select("table.board-list-table tbody tr"):
         a = tr.select_one("td.title a[href*='articleNo=']")
         cat = tr.select_one("td.category")
-        if not a or (cat and cat.get_text(strip=True) != "주택"):
+        if not a:
+            continue
+        cname = cat.get_text(strip=True) if cat else "주택"
+        title0 = a.get_text(" ", strip=True)
+        # '기타'에 전세임대 같은 입주자 모집공고가 섞여 올라온다. 상가·택지·산업단지는 계속 뺀다.
+        if cname != "주택" and not (cname == "기타" and re.search(r"전세임대|입주자|임대주택", title0)):
             continue
         m = re.search(r"articleNo=(\d+)", a["href"])
         if not m:

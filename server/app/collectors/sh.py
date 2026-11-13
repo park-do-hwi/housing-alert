@@ -31,5 +31,20 @@ def parse(html: str) -> list[RawNotice]:
     return out
 
 
-def collect() -> list[RawNotice]:
-    return parse(fetch(SH_LIST))
+def collect(pages: int = 3) -> list[RawNotice]:
+    """한 페이지에 10건뿐이라 몰려 올라온 날에도 놓치지 않게 앞 몇 페이지를 본다."""
+    out: list[RawNotice] = []
+    seen: set[str] = set()
+    for p in range(1, pages + 1):
+        try:
+            rows = parse(fetch(SH_LIST if p == 1 else f"{SH_LIST}?page={p}"))
+        except Exception:  # noqa: BLE001
+            if p == 1:
+                raise
+            break
+        new = [n for n in rows if n.ext_id not in seen]
+        if not new:
+            break
+        seen.update(n.ext_id for n in new)
+        out += new
+    return out
