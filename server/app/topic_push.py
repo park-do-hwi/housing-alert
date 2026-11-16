@@ -90,7 +90,7 @@ def message_for(item: dict, today_iso: str | None = None) -> dict:
             "condition": condition_for(item),
             "notification": {"title": f"🔔 {where}{tags} 새 공고", "body": body_for(item, today_iso)},
             "data": {"id": str(item.get("id", "")), "url": item.get("url", "")},
-            "android": {"priority": "HIGH"},
+            "android": {"priority": "HIGH", "notification": {"channel_id": "housing_alert_new"}},
         }
     }
 
