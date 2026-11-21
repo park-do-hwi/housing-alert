@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,6 +84,20 @@ jobs:
         with:
           path: server/public
 
+      # 업로드 직후 GitHub 쪽 아티팩트 조회가 늦어 "No artifacts named github-pages" 로 가끔 실패한다 → 잠깐 쉬고 한 번 더 시도.
+      - name: 업로드 반영 대기
+        run: sleep 20
+
       - name: GitHub Pages 배포
-        id: deploy
+        id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 재시도 전 대기
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 30
+
+      - name: GitHub Pages 배포 (재시도)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4
