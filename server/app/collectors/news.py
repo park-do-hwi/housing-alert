@@ -36,13 +36,18 @@ def fetch(limit: int = 40) -> list[dict]:
             if n["t"] not in seen:
                 seen.add(n["t"])
                 items.append(n)
-    items = [n for n in items if _ON_TOPIC.search(n["t"]) and not _OFF.search(n["t"])]
+    items = [n for n in items if _ON_TOPIC.search(n["t"]) and not _OFF.search(n["t"])
+             and not _POLITICS.search(n["t"]) and not _JUNK_SRC.search(n.get("s", ""))]
     items.sort(key=lambda x: x["at"], reverse=True)
     return items[:limit]
 
 
 _ON_TOPIC = re.compile(r"청약|분양|임대|LH|SH|공공|행복주택|무순위|특별공급|당첨|입주|주택공급|공공주택|전세|신혼|재건축|재개발")
 _OFF = re.compile(r"비트코인|코인|주식|오피스텔 투자|경매 강의")
+# 정치 공방·수사·사건 기사는 청약 정보가 아니다
+_POLITICS = re.compile(r"여야|공방|민주당|국민의힘|국감|송치|기소|검찰|경찰|의혹|부정 ?청약|탈세|비리|당정|국회|대통령|후보자|청문회|폭락|증시")
+# 청약 일정을 자동 생성해 올리는 광고성 블로그·정리 사이트
+_JUNK_SRC = re.compile(r"블로그차트|민심뉴스|홈두부|블로그|티스토리|네이버 ?블로그|브런치|카페")
 # 뉴스·영상 탭(일반 영상)에서 빼는 홍보성 제목
 _PROMO = re.compile(r"견본주택|모델하우스|오픈임박|오픈예정|오픈중|선착순|계약조건|분양가격\(|분양가격 |급매|마감임박|프리미엄 ?전망|투자 ?가치|대박|놓치면")
 # 단지별 관련 영상에서는 견본주택·단지정보 영상은 정보이니 두고, 과장 광고만 뺀다
@@ -90,7 +95,8 @@ def fetch_videos(key: str, limit: int = 12, per_channel: int = 2) -> list[dict]:
             au = d.get("author") or ""
             if not (_YT.match(u) and th.startswith("https://")) or u in seen or _norm(t) in titles:
                 continue
-            if not (_ON_TOPIC.search(t) and not _OFF.search(t) and not _PROMO.search(t) and TRUSTED.search(au)):
+            if not (_ON_TOPIC.search(t) and not _OFF.search(t) and not _PROMO.search(t) and not _POLITICS.search(t)
+                    and TRUSTED.search(au)):
                 continue
             if not good_video(d) or per.get(au, 0) >= per_channel:
                 continue
