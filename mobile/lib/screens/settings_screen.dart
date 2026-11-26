@@ -211,9 +211,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('개인정보처리방침'),
           ),
           // 동의창이 적용되는 지역(유럽 등)에서만 보인다.
-          FutureBuilder<bool>(
-            future: AdService.privacyOptionsRequired(),
-            builder: (context, snap) => snap.data == true
+          ValueListenableBuilder<bool>(
+            valueListenable: AdService.privacyOptionsRequired,
+            builder: (context, required, _) => required
                 ? const TextButton(
                     onPressed: AdService.showPrivacyOptions,
                     child: Text('광고 개인정보 설정'),

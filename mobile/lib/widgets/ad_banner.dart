@@ -25,6 +25,10 @@ class AdService {
   /// 광고를 요청해도 되는 상태(동의가 필요 없거나, 동의 절차를 마침)면 true.
   static final ready = ValueNotifier<bool>(false);
 
+  /// 설정 화면의 '광고 개인정보 설정' 버튼을 보여야 하면 true.
+  /// 동의 상태 확인은 앱 시작 뒤에 끝나므로, 값이 바뀌면 화면이 따라 바뀌게 둔다.
+  static final privacyOptionsRequired = ValueNotifier<bool>(false);
+
   /// 앱 시작 때 한 번 부른다. 안드로이드에서만 동작한다.
   /// 유럽(EEA)·영국·스위스에서는 광고 전에 Google 동의창(UMP)을 먼저 보여 준다.
   static Future<void> init() async {
@@ -59,25 +63,25 @@ class AdService {
     }
   }
 
-  /// 설정 화면의 '광고 개인정보 설정' 버튼을 보여야 하는지.
-  static Future<bool> privacyOptionsRequired() async {
-    if (!adsEnabled || !Platform.isAndroid) return false;
-    try {
-      return await ConsentInformation.instance
-              .getPrivacyOptionsRequirementStatus() ==
-          PrivacyOptionsRequirementStatus.required;
-    } catch (_) {
-      return false;
-    }
-  }
-
   /// 동의 선택을 다시 바꾸는 창을 연다.
   static Future<void> showPrivacyOptions() async {
     await ConsentForm.showPrivacyOptionsForm((_) {});
     await _startIfAllowed();
   }
 
+  static Future<void> _refreshPrivacyOptions() async {
+    try {
+      privacyOptionsRequired.value =
+          await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } catch (_) {
+      // 알 수 없으면 지난 값을 그대로 둔다.
+    }
+  }
+
   static Future<void> _startIfAllowed() async {
+    await _refreshPrivacyOptions();
     if (!await ConsentInformation.instance.canRequestAds()) return;
     if (_sdkStarted) return;
     _sdkStarted = true;
