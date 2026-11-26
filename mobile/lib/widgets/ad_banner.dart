@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -12,20 +14,81 @@ const adUnitDetail = String.fromEnvironment('ADMOB_BANNER_DETAIL', defaultValue:
 /// 광고를 켜고 끄는 스위치. `--dart-define=ADS_ENABLED=false` 로 끌 수 있다.
 const adsEnabled = bool.fromEnvironment('ADS_ENABLED', defaultValue: true);
 
+/// 동의창 시험용: 디버그 빌드에서 `--dart-define=UMP_TEST_DEVICE=<기기 해시>` 를 주면
+/// 그 기기를 유럽(EEA)에 있는 것처럼 다룬다. 출시 빌드에서는 무시된다.
+const _umpTestDevice = String.fromEnvironment('UMP_TEST_DEVICE');
+
 class AdService {
   static bool _started = false;
+  static bool _sdkStarted = false;
+
+  /// 광고를 요청해도 되는 상태(동의가 필요 없거나, 동의 절차를 마침)면 true.
+  static final ready = ValueNotifier<bool>(false);
 
   /// 앱 시작 때 한 번 부른다. 안드로이드에서만 동작한다.
+  /// 유럽(EEA)·영국·스위스에서는 광고 전에 Google 동의창(UMP)을 먼저 보여 준다.
   static Future<void> init() async {
     if (_started || !adsEnabled || !Platform.isAndroid) return;
     _started = true;
+    try {
+      final done = Completer<void>();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        ConsentRequestParameters(
+          consentDebugSettings: kDebugMode && _umpTestDevice.isNotEmpty
+              ? ConsentDebugSettings(
+                  debugGeography: DebugGeography.debugGeographyEea,
+                  testIdentifiers: [_umpTestDevice],
+                )
+              : null,
+        ),
+        () async {
+          try {
+            await ConsentForm.loadAndShowConsentFormIfRequired((_) {});
+          } finally {
+            done.complete();
+          }
+        },
+        (_) => done.complete(), // 확인에 실패해도 지난 실행의 동의 상태는 아래에서 쓴다
+      );
+      // 지난번에 이미 동의 절차를 마쳤다면 새 확인을 기다리지 않고 광고를 준비한다.
+      await _startIfAllowed();
+      await done.future;
+      await _startIfAllowed();
+    } catch (_) {
+      _started = false;
+    }
+  }
+
+  /// 설정 화면의 '광고 개인정보 설정' 버튼을 보여야 하는지.
+  static Future<bool> privacyOptionsRequired() async {
+    if (!adsEnabled || !Platform.isAndroid) return false;
+    try {
+      return await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 동의 선택을 다시 바꾸는 창을 연다.
+  static Future<void> showPrivacyOptions() async {
+    await ConsentForm.showPrivacyOptionsForm((_) {});
+    await _startIfAllowed();
+  }
+
+  static Future<void> _startIfAllowed() async {
+    if (!await ConsentInformation.instance.canRequestAds()) return;
+    if (_sdkStarted) return;
+    _sdkStarted = true;
     try {
       await MobileAds.instance.updateRequestConfiguration(
         RequestConfiguration(maxAdContentRating: MaxAdContentRating.t),
       );
       await MobileAds.instance.initialize();
+      ready.value = true;
     } catch (_) {
-      _started = false;
+      _sdkStarted = false;
     }
   }
 }
@@ -78,23 +141,29 @@ class _AdBannerState extends State<AdBanner> {
   @override
   Widget build(BuildContext context) {
     if (!adsEnabled || !Platform.isAndroid) return const SizedBox.shrink();
-    return LayoutBuilder(
-      builder: (context, c) {
-        final w = c.maxWidth.truncate();
-        if (w > 0 && w != _width) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _load(w);
-          });
-        }
-        final ad = _ad;
-        if (!_loaded || ad == null) return const SizedBox.shrink();
-        return Semantics(
-          label: '광고',
-          child: SizedBox(
-            width: ad.size.width.toDouble(),
-            height: ad.size.height.toDouble(),
-            child: AdWidget(ad: ad),
-          ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AdService.ready,
+      builder: (context, ready, _) {
+        if (!ready) return const SizedBox.shrink();
+        return LayoutBuilder(
+          builder: (context, c) {
+            final w = c.maxWidth.truncate();
+            if (w > 0 && w != _width) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _load(w);
+              });
+            }
+            final ad = _ad;
+            if (!_loaded || ad == null) return const SizedBox.shrink();
+            return Semantics(
+              label: '광고',
+              child: SizedBox(
+                width: ad.size.width.toDouble(),
+                height: ad.size.height.toDouble(),
+                child: AdWidget(ad: ad),
+              ),
+            );
+          },
         );
       },
     );
