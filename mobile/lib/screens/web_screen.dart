@@ -39,7 +39,7 @@ class _WebScreenState extends State<WebScreen> {
           IconButton(
             tooltip: '공유',
             icon: const Icon(Icons.share_outlined),
-            onPressed: () => SharePlus.instance.share(ShareParams(text: '${widget.title}\n${widget.url}\n- 내집첫걸음')),
+            onPressed: () => SharePlus.instance.share(ShareParams(text: '${widget.title}\n${widget.url}\n- 분양레이더')),
           ),
         ],
         bottom: progress < 100

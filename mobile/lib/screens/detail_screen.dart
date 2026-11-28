@@ -49,7 +49,7 @@ class DetailScreen extends ConsumerWidget {
           onPressed: () {
             final e = notice.applyEnd;
             final period = e != null ? '\n접수 마감 ${e.month}.${e.day}' : '';
-            SharePlus.instance.share(ShareParams(text: '[${sourceLabel(notice.source)}] ${notice.title}$period\n${notice.url}\n- 내집첫걸음'));
+            SharePlus.instance.share(ShareParams(text: '[${sourceLabel(notice.source)}] ${notice.title}$period\n${notice.url}\n- 분양레이더'));
           },
         ),
         IconButton(

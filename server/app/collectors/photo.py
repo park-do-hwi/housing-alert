@@ -11,7 +11,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 log = logging.getLogger(__name__)
-UA = {"User-Agent": "Mozilla/5.0 (compatible; NaejipFirstStep/1.0)"}
+UA = {"User-Agent": "Mozilla/5.0 (compatible; BunyangRadar/1.0)"}
 BAD = re.compile(r"logo|favicon|sns|icon|banner|share|kakao|naver|default|noimage|blank", re.I)
 OG = [
     re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)', re.I),
