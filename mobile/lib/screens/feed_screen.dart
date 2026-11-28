@@ -40,7 +40,7 @@ class FeedScreen extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('청약레이더'),
+                const Text('내집첫걸음'),
                 Text(
                   '오늘·이번 주에 해야 할 청약',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(

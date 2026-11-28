@@ -160,7 +160,7 @@ class _HousingAppState extends ConsumerState<HousingApp> {
   Widget build(BuildContext context) {
     ref.listen(subscriptionProvider, (_, next) => _push.sync(next));
     return MaterialApp.router(
-      title: '청약레이더',
+      title: '내집첫걸음',
       routerConfig: router,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
